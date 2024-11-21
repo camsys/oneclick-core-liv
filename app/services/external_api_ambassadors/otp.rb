@@ -49,10 +49,20 @@ module OTP
     # trip_datetime should be a DateTime object;
     # arrive_by should be a boolean
     # Accepts a hash of additional options, none of which are required to make the plan call run
-    def plan(from, to, trip_datetime, arrive_by = true, options = {})
+    def plan(from, to, trip_datetime, arrive_by = true, transport_modes = nil, options = {})
+      # Default transport modes if none are provided
+      transport_modes ||= [
+        { mode: "TRANSIT" },
+        { mode: "WALK" },
+        { mode: "FLEX", qualifier: "DIRECT" },
+        { mode: "FLEX", qualifier: "ACCESS" },
+        { mode: "FLEX", qualifier: "EGRESS" }
+      ]
+    
       # Build the GraphQL endpoint URL
-      url = "https://hopelink-otp.ibi-transit.com/otp/routers/default/index/graphql"
+      url = "#{@base_url}/otp/routers/default/index/graphql"
       Rails.logger.info("URL: #{url}")
+    
       # Define the GraphQL query
       query = <<-GRAPHQL
         query($fromLat: Float!, $fromLon: Float!, $toLat: Float!, $toLon: Float!, $date: String!, $time: String!) {
@@ -61,13 +71,7 @@ module OTP
             to: { lat: $toLat, lon: $toLon }
             date: $date
             time: $time
-            transportModes: [
-              { mode: TRANSIT },
-              { mode: WALK },
-              { mode: FLEX, qualifier: DIRECT },
-              { mode: FLEX, qualifier: ACCESS },
-              { mode: FLEX, qualifier: EGRESS }
-            ]
+            transportModes: #{transport_modes.to_json}
           ) {
             itineraries {
               startTime
@@ -142,7 +146,6 @@ module OTP
         }
       GRAPHQL
     
-    
       # Define variables for the GraphQL query
       variables = {
         fromLat: from[0].to_f,
@@ -176,6 +179,7 @@ module OTP
       # Parse and return the JSON response
       JSON.parse(response.body)
     end
+  
    
     # Helper method to make the GraphQL request
     def make_graphql_request(url, body, headers)

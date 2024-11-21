@@ -144,14 +144,65 @@ class TripPlanner
   
   # Builds itineraries for all trip types
   def build_all_itineraries
-    trip_itineraries = @trip_types.flat_map {|t| build_itineraries(t)}
-    new_itineraries = trip_itineraries.reject(&:persisted?)
-    old_itineraries = trip_itineraries.select(&:persisted?)
-
-    Itinerary.transaction do
-      old_itineraries.each(&:save!)
-      @trip.itineraries += new_itineraries
+    # Query itineraries for each trip type
+    trip_itineraries = @trip_types.flat_map do |trip_type|
+      build_itineraries_for_trip_type(trip_type)
     end
+
+    # Separate queries for FLEX modes
+    flex_modes = [
+      { mode: "FLEX", qualifier: "DIRECT" },
+      { mode: "FLEX", qualifier: "ACCESS" },
+      { mode: "FLEX", qualifier: "EGRESS" }
+    ]
+    flex_itineraries = flex_modes.flat_map do |flex_mode|
+      build_flex_itineraries(flex_mode)
+    end
+
+    # Combine all itineraries
+    combined_itineraries = (trip_itineraries + flex_itineraries).uniq
+
+    # Filter out duplicates or invalid entries and save
+    Itinerary.transaction do
+      @trip.itineraries += combined_itineraries.reject(&:persisted?)
+      combined_itineraries.each(&:save!)
+    end
+  end
+
+    # Build itineraries specifically for FLEX modes
+  def build_flex_itineraries(flex_mode)
+    # Set transport mode for the router
+    flex_router = OTPAmbassador.new(
+      @trip,
+      trip_types: [:paratransit],
+      http_request_bundler: @http_request_bundler,
+      services: @available_services[:paratransit]
+    )
+
+    # Configure the router to use specific FLEX modes
+    flex_router.otp.transport_modes = [flex_mode]
+
+    # Fetch itineraries for the specific FLEX mode
+    flex_router.get_itineraries(:paratransit).map do |itin|
+      # Check for invalid or duplicate itineraries
+      next if itin.invalid?
+
+      Itinerary.new(itin)
+    end.compact
+  end
+
+  # Build itineraries for a specific trip type
+  def build_itineraries_for_trip_type(trip_type)
+    # Ensure response from router
+    itineraries = @router.get_itineraries(trip_type)
+
+    # Map itineraries into 1-Click-ready objects
+    itineraries.map do |itin|
+      # Skip invalid itineraries
+      next if itin.invalid?
+
+      Itinerary.new(itin)
+    end.compact
   end
 
   # Additional sanity checks can be applied here.
