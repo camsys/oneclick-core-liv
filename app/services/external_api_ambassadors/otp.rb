@@ -136,9 +136,6 @@ module OTP
                     }
                   }
                 }
-                legGeometry {
-                  points
-                }
               }
             }
           }
