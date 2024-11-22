@@ -288,8 +288,6 @@ class OTPAmbassador
     # Log extracted values
     Rails.logger.info "GTFS Agency ID: #{gtfs_agency_id}, Name: #{gtfs_agency_name}"
   
-    svc = nil
-  
     # Attempt to find service by GTFS ID
     if gtfs_agency_id
       svc = Service.find_by(gtfs_agency_id: gtfs_agency_id)
@@ -298,25 +296,20 @@ class OTPAmbassador
   
     # Fallback to find by GTFS Agency Name
     if svc.nil? && gtfs_agency_name
-      # Normalize the GTFS agency name for comparison
       svc = Service.where('LOWER(name) = ?', gtfs_agency_name.downcase).first
       Rails.logger.info "Service found by normalized GTFS Name: #{svc.inspect}" if svc
     end
   
-    # Ensure service is within permitted services
-    if svc
-      permitted_service = @services.find { |s| s.id == svc.id }
-      if permitted_service
-        Rails.logger.info "Permitted service: #{permitted_service.inspect}"
-        return permitted_service
-      else
-        Rails.logger.warn "Service #{svc.inspect} not in permitted services."
-      end
+    # Ensure service is within permitted services and skip if not
+    if svc && @services.any? { |s| s.id == svc.id }
+      Rails.logger.info "Permitted service: #{svc.inspect}"
+      return svc
     else
-      Rails.logger.warn "No matching service found for leg."
-      nil
+      Rails.logger.warn "Service #{svc.inspect} not permitted. Skipping."
+      return nil
     end
   end
+  
   
 
   # OTP Lists Car and Walk as having 0 transit time
