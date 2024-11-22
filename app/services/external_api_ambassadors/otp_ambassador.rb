@@ -190,10 +190,13 @@ class OTPAmbassador
     )
 
     Rails.logger.info("Response from OTPService for trip_type #{trip_type}: #{response.inspect}")
+    Rails.logger.info("Validating OTP response for trip_type: #{trip_type}")
   
-    if response['data'] && response['data']['plan']
+    if response['data'] && response['data']['plan'] && response['data']['plan']['itineraries']
+      Rails.logger.info("Valid itineraries found: #{response['data']['plan']['itineraries']}")
       OTPResponse.new(response)
     else
+      Rails.logger.warn("No valid itineraries in response: #{response.inspect}")
       { "error" => "No valid response from OTP GraphQL API" }
     end
   end  

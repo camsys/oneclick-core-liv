@@ -340,9 +340,13 @@ module OTP
 
     # Returns the array of itineraries
     def extract_itineraries
+      Rails.logger.info("Parsing itineraries from response: #{@response[:plan][:itineraries].inspect}")
       return [] unless @response && @response[:plan] && @response[:plan][:itineraries]
-      @response[:plan][:itineraries].map {|i| OTPItinerary.new(i)}
-    end
+      @response[:plan][:itineraries].map { |i| OTPItinerary.new(i) }
+    rescue => e
+      Rails.logger.error("Error in extract_itineraries: #{e.message}")
+      []
+    end    
 
   end
 
