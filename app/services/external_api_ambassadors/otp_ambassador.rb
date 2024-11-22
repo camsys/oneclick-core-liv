@@ -18,7 +18,13 @@ class OTPAmbassador
 
   TRIP_TYPE_DICTIONARY_V2 = {
     transit:      { label: :otp_transit, modes: "TRANSIT,WALK" },
-    paratransit:  { label: :otp_paratransit, modes: "TRANSIT,WALK,FLEX_ACCESS,FLEX_EGRESS,FLEX_DIRECT" },
+    paratransit:  { label: :otp_paratransit, modes: [
+      { mode: "FLEX", qualifier: "DIRECT" },
+      { mode: "FLEX", qualifier: "ACCESS" },
+      { mode: "FLEX", qualifier: "EGRESS" },
+      { mode: "TRANSIT" },
+      { mode: "WALK" }
+    ] },
     car_park:     { label: :otp_car_park, modes: "CAR_PARK,TRANSIT,WALK" },
     taxi:         { label: :otp_car, modes: "CAR" },
     walk:         { label: :otp_walk, modes: "WALK" },
