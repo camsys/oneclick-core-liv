@@ -105,6 +105,9 @@ module OTP
     end
 
     def build_graphql_body(from, to, trip_datetime, transport_modes)
+      Rails.logger.info("Transpot Modes: #{transport_modes}")
+      formatted_modes = transport_modes.map { |mode| "{ mode: \"#{mode[:mode]}\"#{", qualifier: \"#{mode[:qualifier]}\"" if mode[:qualifier]} }" }.join(", ")
+      Rails.logger.info("Formatted Modes: #{formatted_modes}")
       {
         query: <<-GRAPHQL,
           query($fromLat: Float!, $fromLon: Float!, $toLat: Float!, $toLon: Float!, $date: String!, $time: String!) {
@@ -113,7 +116,7 @@ module OTP
               to: { lat: $toLat, lon: $toLon }
               date: $date
               time: $time
-              transportModes: #{transport_modes.map { |mode| "{ mode: #{mode[:mode].inspect}#{", qualifier: #{mode[:qualifier].inspect}" if mode[:qualifier]} }" }.join(", ")}
+              transportModes: [#{formatted_modes}]
             ) {
               itineraries {
                 startTime
