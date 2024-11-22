@@ -101,7 +101,10 @@ module OTP
 
     def build_graphql_body(from, to, trip_datetime, transport_modes)
       Rails.logger.info("Transpot Modes: #{transport_modes}")
-      formatted_modes = transport_modes.map do |mode|
+
+      normalized_modes = Array(transport_modes)
+
+      formatted_modes = normalized_modes.map do |mode|
         if mode[:mode] == "FLEX"
           "{ mode: #{mode[:mode]}, qualifier: #{mode[:qualifier]} }"
         else
