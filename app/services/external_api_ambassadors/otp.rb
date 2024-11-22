@@ -59,7 +59,7 @@ module OTP
       transport_modes ||= determine_default_modes(options) # Logic to get default modes
 
       # GraphQL endpoint
-      url = "#{@base_url}/otp/routers/default/index/graphql"
+      url = "#{@base_url}/index/graphql"
 
       # Build GraphQL body
       body = build_graphql_body(from, to, trip_datetime, transport_modes)
