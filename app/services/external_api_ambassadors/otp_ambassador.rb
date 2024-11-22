@@ -190,8 +190,13 @@ class OTPAmbassador
   # them in an OTPResponse object
   def ensure_response(trip_type)
     trip_type_label = @trip_type_dictionary[trip_type][:label]
-    modes = @trip_type_dictionary[trip_type][:modes].split(',').map { |mode| { mode: mode.strip } }
-  
+    modes = if @trip_type_dictionary[trip_type][:modes].is_a?(String)
+      @trip_type_dictionary[trip_type][:modes].split(',').map { |mode| { mode: mode.strip } }
+    elsif @trip_type_dictionary[trip_type][:modes].is_a?(Array)
+      @trip_type_dictionary[trip_type][:modes]
+    else
+      []
+    end  
     # Call the `plan` method from OTPService
     response = @otp.plan(
       [@trip.origin.lat, @trip.origin.lng],
