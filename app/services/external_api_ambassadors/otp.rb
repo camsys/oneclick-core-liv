@@ -365,6 +365,7 @@ module OTP
     def initialize(response)
       response = JSON.parse(response) if response.is_a?(String)
       @response = response.with_indifferent_access
+      Rails.logger.info("Parsing OTP response: #{@response.inspect}")
       @itineraries = extract_itineraries
     end
 
