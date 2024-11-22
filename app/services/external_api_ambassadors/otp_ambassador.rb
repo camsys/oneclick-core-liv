@@ -48,6 +48,7 @@ class OTPAmbassador
     @http_request_bundler = http_request_bundler
     @services = services
 
+
     otp_version = Config.open_trip_planner_version
     @trip_type_dictionary = otp_version == 'v1' ? TRIP_TYPE_DICTIONARY : TRIP_TYPE_DICTIONARY_V2
     @request_types = @trip_types.map { |tt|
@@ -279,6 +280,10 @@ class OTPAmbassador
   
 
   def get_associated_service_for(leg)
+
+    Rails.logger.info "Permitted service IDs: #{@services.map(&:id)}"
+    Rails.logger.info "Service being checked: #{svc&.id}"
+
     leg ||= {}
   
     # Extract GTFS agency ID and name from the route's agency field
