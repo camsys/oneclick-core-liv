@@ -79,8 +79,6 @@ module OTP
       Rails.logger.info("GraphQL Request: #{body}")
       Rails.logger.info("GraphQL URL: #{url}")
       Rails.logger.info("GraphQL Headers: #{headers}")
-      Rails.logger.info("plan_request: #{bundler.requests[:plan_request]}")
-      Rails.logger.info("bundle: #{bundler}")
       bundler.make_calls
 
       # Process and parse the response
