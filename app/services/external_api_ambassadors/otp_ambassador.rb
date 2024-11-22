@@ -298,7 +298,6 @@ class OTPAmbassador
       Rails.logger.info "Service found by GTFS ID: #{svc.inspect}" if svc
     end
 
-    Rails.logger.info "Permitted service IDs: #{@services.map(&:id)}"
     Rails.logger.info "Service being checked: #{svc&.id}"
   
     # Fallback to find by GTFS Agency Name

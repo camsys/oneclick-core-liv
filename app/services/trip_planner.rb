@@ -273,6 +273,7 @@ class TripPlanner
 
   # Builds paratransit itineraries for each service, populates transit_time based on OTP response
   def build_paratransit_itineraries
+    Rails.logger.info("Building paratransit itineraries...")
     return [] unless @available_services[:paratransit].present? # Return an empty array if no paratransit services are available
 
     # gtfs flex can load paratransit itineraries but not all otp instances have flex
@@ -283,6 +284,8 @@ class TripPlanner
       otp_itineraries = build_fixed_itineraries(:paratransit).select{ |itin|
         itin.service_id.present?
       }
+
+      Rails.logger.info("Paratransit itineraries from OTP: #{otp_itineraries.map(&:inspect)}")
       
       # paratransit itineraries can return just transit since we also look for a mixed
       # filter these out
