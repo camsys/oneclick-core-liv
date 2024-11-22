@@ -168,15 +168,23 @@ class OTPAmbassador
   # them in an OTPResponse object
   def ensure_response(trip_type)
     trip_type_label = @trip_type_dictionary[trip_type][:label]
-    response = @http_request_bundler.response(trip_type_label)
-    status_code = @http_request_bundler.response_status_code(trip_type_label)
-    
-    if status_code && status_code == '200'
-      otp.unpack(response)
+    modes = @trip_type_dictionary[trip_type][:modes].split(',').map { |mode| { mode: mode.strip } }
+  
+    # Call the `plan` method from OTPService
+    response = @otp.plan(
+      [@trip.origin.lat, @trip.origin.lng],
+      [@trip.destination.lat, @trip.destination.lng],
+      @trip.trip_time,
+      @trip.arrive_by,
+      modes
+    )
+  
+    if response['data'] && response['data']['plan']
+      OTPResponse.new(response)
     else
-      {"error" => "Http Error #{status_code}"}
-    end 
-  end
+      { "error" => "No valid response from OTP GraphQL API" }
+    end
+  end  
 
   # Converts an OTP itinerary hash into a set of 1-Click itinerary attributes
   def convert_itinerary(otp_itin, trip_type)
