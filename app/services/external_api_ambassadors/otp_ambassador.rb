@@ -281,8 +281,6 @@ class OTPAmbassador
 
   def get_associated_service_for(leg)
 
-    Rails.logger.info "Permitted service IDs: #{@services.map(&:id)}"
-    Rails.logger.info "Service being checked: #{svc&.id}"
 
     leg ||= {}
   
@@ -298,6 +296,9 @@ class OTPAmbassador
       svc = Service.find_by(gtfs_agency_id: gtfs_agency_id)
       Rails.logger.info "Service found by GTFS ID: #{svc.inspect}" if svc
     end
+
+        Rails.logger.info "Permitted service IDs: #{@services.map(&:id)}"
+    Rails.logger.info "Service being checked: #{svc&.id}"
   
     # Fallback to find by GTFS Agency Name
     if svc.nil? && gtfs_agency_name
