@@ -262,23 +262,41 @@ class OTPAmbassador
   
 
   def get_associated_service_for(leg)
-    svc = nil
     leg ||= {}
     Rails.logger.info "Inspecting leg: #{leg.inspect}"
-    gtfs_agency_id = leg['agencyId']
-    gtfs_agency_name = leg['agencyName']
   
-    # If gtfs_agency_id is not nil, first attempt to find the service by its GTFS agency ID.
-    svc ||= Service.find_by(gtfs_agency_id: gtfs_agency_id) if gtfs_agency_id
+    # Extract GTFS agency ID and name from the route's agency field
+    gtfs_agency_id = leg.dig('route', 'agency', 'gtfsId')
+    gtfs_agency_name = leg.dig('route', 'agency', 'name')
   
-    if svc
-      # If a service is found by ID, we need to check if it's within the list of permitted services.
-      return @services.detect { |s| s.id == svc.id }
-    else
-      # If we didn't find a service by its ID, and if gtfs_agency_name is not nil, then we try to find a service by its GTFS agency name.
-      return @services.find_by(name: gtfs_agency_name) if gtfs_agency_name
+    # Log extracted values
+    Rails.logger.info "GTFS Agency ID: #{gtfs_agency_id}, Name: #{gtfs_agency_name}"
+  
+    svc = nil
+  
+    # Attempt to find service by GTFS ID
+    if gtfs_agency_id
+      svc = Service.find_by(gtfs_agency_id: gtfs_agency_id)
+      Rails.logger.info "Service found by GTFS ID: #{svc.inspect}" if svc
     end
-  end  
+  
+    # Fallback to find by GTFS Agency Name
+    if svc.nil? && gtfs_agency_name
+      svc = Service.find_by(name: gtfs_agency_name)
+      Rails.logger.info "Service found by GTFS Name: #{svc.inspect}" if svc
+    end
+  
+    # Ensure service is within permitted services
+    if svc
+      permitted_service = @services.detect { |s| s.id == svc.id }
+      Rails.logger.info "Permitted service: #{permitted_service.inspect}"
+      return permitted_service
+    else
+      Rails.logger.warn "No matching service found for leg."
+      return nil
+    end
+  end
+  
 
   # OTP Lists Car and Walk as having 0 transit time
   def get_transit_time(otp_itin, trip_type)
