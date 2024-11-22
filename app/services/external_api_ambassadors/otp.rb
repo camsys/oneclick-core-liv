@@ -61,6 +61,9 @@ module OTP
       # GraphQL endpoint
       url = "#{@base_url}/index/graphql"
 
+      Rails.logger.info("OTP Request: #{from} to #{to} at #{trip_datetime} with modes #{transport_modes}")
+      Rails.logger.info("Url: #{url}")
+
       # Build GraphQL body
       body = build_graphql_body(from, to, trip_datetime, transport_modes)
       
