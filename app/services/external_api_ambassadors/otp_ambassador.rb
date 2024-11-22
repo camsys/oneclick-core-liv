@@ -222,7 +222,7 @@ class OTPAmbassador
       walk_time: otp_itin["walkTime"],
       wait_time: otp_itin["waitingTime"],
       walk_distance: otp_itin["walkDistance"],
-      cost: calculate_cost(otp_itin),
+      cost: calculate_cost(otp_itin, trip_type),
       legs: otp_itin["legs"],
       trip_type: trip_type,
       service_id: service_id
