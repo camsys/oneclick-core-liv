@@ -233,40 +233,33 @@ class OTPAmbassador
 
   # Modifies OTP Itin's legs, inserting information about 1-Click services
   def associate_legs_with_services(otp_itin)
-  Rails.logger.info "Inspecting OTP itinerary structure: #{otp_itin.inspect}"
-
-  itineraries = otp_itin['itineraries'] || otp_itin.dig('plan', 'itineraries')
+    Rails.logger.info "Inspecting OTP itinerary structure: #{otp_itin.inspect}"
   
-  if itineraries.nil?
-    Rails.logger.error("Error: Expected 'itineraries' array missing from otp_itin. Check structure.")
-    return
-  end
-
-  # Proceed if itineraries are found
-  itineraries.each do |itinerary|
-    itinerary['legs'] ||= []
-
-    itinerary['legs'] = itinerary['legs'].map do |leg|
+    itinerary = otp_itin.is_a?(Hash) ? otp_itin['itinerary'] : otp_itin.itinerary
+  
+    unless itinerary
+      Rails.logger.error("Error: Expected itinerary missing from otp_itin. Check structure.")
+      return
+    end
+  
+    otp_itin.legs ||= []
+    otp_itin.legs = otp_itin.legs.map do |leg|
       svc = get_associated_service_for(leg)
-
-      if !leg['mode'].include?('FLEX') && leg['boardRule'] == 'mustPhone'
-        leg['mode'] = 'FLEX_ACCESS'
-      end
-
+  
+      # Assign service details if a service is found
       if svc
         leg['serviceId'] = svc.id
         leg['serviceName'] = svc.name
         leg['serviceFareInfo'] = svc.url
         leg['serviceLogoUrl'] = svc.full_logo_url
-        leg['serviceFullLogoUrl'] = svc.full_logo_url(nil)
       else
         leg['serviceName'] = leg['agencyName'] || leg['agencyId']
       end
-
+  
       leg
     end
   end
-end
+  
 
   def get_associated_service_for(leg)
     svc = nil
