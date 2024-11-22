@@ -294,22 +294,28 @@ class TripPlanner
       router_paratransit_itineraries += otp_itineraries.map do |itin|
         no_paratransit = true
         has_transit = false
-  
+      
         itin.legs.each do |leg|
-          Rails.logger.info("Processing leg mode: #{leg['mode']} for itinerary...")
-          no_paratransit = false if leg['mode'].include?('FLEX')
+          Rails.logger.info("Processing leg: Mode: #{leg['mode']}, Agency: #{leg['route']['agency']['name'] rescue 'N/A'}, Route Name: #{leg['route']['longName'] rescue 'N/A'}")
+          
+          # Check if the leg's agency name matches any of the available services' names
+          if leg['route'] && leg['route']['agency'] && @available_services[:paratransit].pluck(:name).include?(leg['route']['agency']['name'])
+            Rails.logger.info("Identified paratransit leg: Agency Name: #{leg['route']['agency']['name']}")
+            no_paratransit = false
+          end
+      
           has_transit = true unless leg['mode'].include?('FLEX') || leg['mode'] == 'WALK'
         end
-  
+      
         if no_paratransit
-          Rails.logger.info("Skipping itinerary: No paratransit legs found.")
+          Rails.logger.info("Skipping itinerary: No paratransit legs found for service #{itin.service_id}")
           next nil
         end
-  
+      
         itin.trip_type = 'paratransit_mixed' if has_transit
-        Rails.logger.info("Itinerary marked as paratransit_mixed") if has_transit
+        Rails.logger.info("Itinerary processed as paratransit_mixed: #{itin.inspect}") if has_transit
         itin
-      end.compact
+      end.compact      
   
       Rails.logger.info("Router paratransit itineraries count after processing: #{router_paratransit_itineraries.count}")
     end
