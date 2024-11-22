@@ -151,30 +151,29 @@ class TripPlanner
   # Builds itineraries for all trip types
   def build_all_itineraries
     Rails.logger.info("Building all itineraries for trip types: #{@trip_types}")
-    
-    trip_itineraries = @trip_types.flat_map do |t|
-      Rails.logger.info("Processing trip type: #{t}")
-      build_itineraries(t)
+  
+    processed_trip_types = Set.new
+    trip_itineraries = @trip_types.each_with_object([]) do |trip_type, all_itins|
+      next if processed_trip_types.include?(trip_type)
+  
+      Rails.logger.info("Processing trip type: #{trip_type}")
+      all_itins.concat(build_itineraries(trip_type))
+      processed_trip_types.add(trip_type)
     end
-    
+  
     Rails.logger.info("Built itineraries: #{trip_itineraries.inspect}")
-    
+    save_itineraries(trip_itineraries)
+  end
+  
+  def save_itineraries(trip_itineraries)
     new_itineraries = trip_itineraries.reject(&:persisted?)
     old_itineraries = trip_itineraries.select(&:persisted?)
-    
-    Rails.logger.info("New itineraries count: #{new_itineraries.count}")
-    Rails.logger.info("Old itineraries count: #{old_itineraries.count}")
-    
+  
     Itinerary.transaction do
-      old_itineraries.each do |itin|
-        Rails.logger.info("Saving existing itinerary: #{itin.inspect}")
-        itin.save!
-      end
-      
-      Rails.logger.info("Adding new itineraries to trip: #{new_itineraries.map(&:inspect)}")
+      old_itineraries.each(&:save!)
       @trip.itineraries += new_itineraries
     end
-  end  
+  end    
 
   # Additional sanity checks can be applied here.
   def filter_itineraries
