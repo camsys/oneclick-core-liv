@@ -50,7 +50,6 @@ class TripPlanner
 
     # Identify available services and set instance variable for use in building itineraries
     set_available_services
-    Rails.logger.info("Available services set: #{@available_services.inspect}")
 
     # Sets up external ambassadors
     prepare_ambassadors
