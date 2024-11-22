@@ -124,15 +124,20 @@ class OTPAmbassador
   # Prepares a list of HTTP requests for the HTTP Request Bundler, based on request types
   def prepare_http_requests
     @request_types.map do |request_type|
+      # Transform the mode string into the GraphQL-compatible format
+      transport_modes = request_type[:modes].split(',').map do |mode|
+        { mode: mode.strip } # Basic structure for modes
+      end
+  
+      # Return the GraphQL request structure
       {
         label: request_type[:label],
         url: "#{@otp.base_url}/otp/routers/default/index/graphql",
-        action: :post,
         body: @otp.build_graphql_body(
           [@trip.origin.lat, @trip.origin.lng],
           [@trip.destination.lat, @trip.destination.lng],
           @trip.trip_time,
-          format_trip_modes(request_type)
+          transport_modes
         ).to_json,
         headers: {
           'Content-Type' => 'application/json',
