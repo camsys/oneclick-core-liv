@@ -264,6 +264,7 @@ class OTPAmbassador
   def get_associated_service_for(leg)
     svc = nil
     leg ||= {}
+    Rails.logger.info "Inspecting leg: #{leg.inspect}"
     gtfs_agency_id = leg['agencyId']
     gtfs_agency_name = leg['agencyName']
   
