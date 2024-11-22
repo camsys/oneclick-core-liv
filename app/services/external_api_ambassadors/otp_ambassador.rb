@@ -47,6 +47,7 @@ class OTPAmbassador
     @trip_types = trip_types
     @http_request_bundler = http_request_bundler
     @services = services
+    Rails.logger.info("Services ids: #{services.map(&:id)}")
 
 
     otp_version = Config.open_trip_planner_version
@@ -297,7 +298,7 @@ class OTPAmbassador
       Rails.logger.info "Service found by GTFS ID: #{svc.inspect}" if svc
     end
 
-        Rails.logger.info "Permitted service IDs: #{@services.map(&:id)}"
+    Rails.logger.info "Permitted service IDs: #{@services.map(&:id)}"
     Rails.logger.info "Service being checked: #{svc&.id}"
   
     # Fallback to find by GTFS Agency Name
