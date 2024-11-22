@@ -183,17 +183,23 @@ class OTPAmbassador
   # Fetches responses from the HTTP Request Bundler, and packages
   # them in an OTPResponse object
   def ensure_response(trip_type)
+    @responses ||= {} # Initialize the cache
+  
+    # Return the cached response if it exists
+    return @responses[trip_type] if @responses.key?(trip_type)
+  
     Rails.logger.info("Ensuring response for trip_type: #{trip_type}")
     Rails.logger.info("Checking trip_type_dictionary for trip_type: #{trip_type}")
   
     trip_type_label = @trip_type_dictionary[trip_type][:label]
     modes = if @trip_type_dictionary[trip_type][:modes].is_a?(String)
-      @trip_type_dictionary[trip_type][:modes].split(',').map { |mode| { mode: mode.strip } }
-    elsif @trip_type_dictionary[trip_type][:modes].is_a?(Array)
-      @trip_type_dictionary[trip_type][:modes]
-    else
-      []
-    end  
+              @trip_type_dictionary[trip_type][:modes].split(',').map { |mode| { mode: mode.strip } }
+            elsif @trip_type_dictionary[trip_type][:modes].is_a?(Array)
+              @trip_type_dictionary[trip_type][:modes]
+            else
+              []
+            end
+  
     # Call the `plan` method from OTPService
     response = @otp.plan(
       [@trip.origin.lat, @trip.origin.lng],
@@ -202,15 +208,18 @@ class OTPAmbassador
       @trip.arrive_by,
       modes
     )
-
+  
     Rails.logger.info("Plan response for trip_type #{trip_type}: #{response.inspect}")
   
+    # Cache and return the response
     if response['data'] && response['data']['plan'] && response['data']['plan']['itineraries']
-      OTPResponse.new(response)
+      @responses[trip_type] = OTPResponse.new(response)
     else
       Rails.logger.warn("No valid itineraries in response: #{response.inspect}")
-      { "error" => "No valid response from OTP GraphQL API" }
+      @responses[trip_type] = { "error" => "No valid response from OTP GraphQL API" }
     end
+  
+    @responses[trip_type]
   end  
 
   # Converts an OTP itinerary hash into a set of 1-Click itinerary attributes
