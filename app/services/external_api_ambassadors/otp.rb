@@ -95,14 +95,11 @@ module OTP
       {
         transit: { modes: [{ mode: "TRANSIT" }] },
         walk: { modes: [{ mode: "WALK" }] },
-        flex_direct: { modes: [{ mode: "FLEX", qualifier: "DIRECT" }] },
-        flex_access: { modes: [{ mode: "FLEX", qualifier: "ACCESS" }] },
-        flex_egress: { modes: [{ mode: "FLEX", qualifier: "EGRESS" }] }
+        flex: { modes: [{ mode: "FLEX", qualifier: "DIRECT" }] }
       }.select do |type, _|
-        # Your original logic for including/excluding trip types
-        options[:allow_flex] || type != :flex_direct
+        options[:allow_flex] || type != :flex
       end
-    end
+    end  
 
     def build_graphql_body(from, to, trip_datetime, transport_modes)
       Rails.logger.info("Transpot Modes: #{transport_modes}")
