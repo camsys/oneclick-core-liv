@@ -303,19 +303,25 @@ class OTPAmbassador
   
     # Fallback to find by GTFS Agency Name
     if svc.nil? && gtfs_agency_name
-      svc = Service.find_by(name: gtfs_agency_name)
-      Rails.logger.info "Service found by GTFS Name: #{svc.inspect}" if svc
+      # Normalize the GTFS agency name for comparison
+      svc = Service.where('LOWER(name) = ?', gtfs_agency_name.downcase).first
+      Rails.logger.info "Service found by normalized GTFS Name: #{svc.inspect}" if svc
     end
   
     # Ensure service is within permitted services
     if svc
-      permitted_service = @services.detect { |s| s.id == svc.id }
-      Rails.logger.info "Permitted service: #{permitted_service.inspect}"
-      return permitted_service
+      permitted_service = @services.find { |s| s.id == svc.id }
+      if permitted_service
+        Rails.logger.info "Permitted service: #{permitted_service.inspect}"
+        return permitted_service
+      else
+        Rails.logger.warn "Service #{svc.inspect} not in permitted services."
+      end
     else
       Rails.logger.warn "No matching service found for leg."
-      return nil
     end
+  
+    nil
   end
   
 
