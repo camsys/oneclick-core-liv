@@ -151,29 +151,40 @@ class TripPlanner
   # Builds itineraries for all trip types
   def build_all_itineraries
     Rails.logger.info("Building all itineraries for trip types: #{@trip_types}")
+    
+    # Log the trip types being processed to ensure they are correct and unique
+    @trip_types.each { |t| Rails.logger.info("Processing trip type: #{t}") }
   
-    processed_trip_types = Set.new
-    trip_itineraries = @trip_types.each_with_object([]) do |trip_type, all_itins|
-      next if processed_trip_types.include?(trip_type)
-  
-      Rails.logger.info("Processing trip type: #{trip_type}")
-      all_itins.concat(build_itineraries(trip_type))
-      processed_trip_types.add(trip_type)
+    # Build itineraries for each trip type
+    trip_itineraries = @trip_types.flat_map do |t|
+      Rails.logger.info("Calling build_itineraries for trip type: #{t}")
+      build_itineraries(t)
     end
   
-    Rails.logger.info("Built itineraries: #{trip_itineraries.inspect}")
-    save_itineraries(trip_itineraries)
-  end
+    # Log the itineraries built so far
+    Rails.logger.info("Built itineraries: #{trip_itineraries.map(&:inspect)}")
   
-  def save_itineraries(trip_itineraries)
+    # Separate new and existing itineraries
     new_itineraries = trip_itineraries.reject(&:persisted?)
     old_itineraries = trip_itineraries.select(&:persisted?)
   
+    # Log categorized itineraries
+    Rails.logger.info("New itineraries count: #{new_itineraries.count}")
+    Rails.logger.info("Old itineraries count: #{old_itineraries.count}")
+  
+    # Save old itineraries and associate new ones with the trip
     Itinerary.transaction do
-      old_itineraries.each(&:save!)
+      old_itineraries.each do |itin|
+        Rails.logger.info("Saving existing itinerary: #{itin.inspect}")
+        itin.save!
+      end
+  
+      Rails.logger.info("Adding new itineraries to trip: #{new_itineraries.map(&:inspect)}")
       @trip.itineraries += new_itineraries
     end
-  end    
+  
+    Rails.logger.info("All itineraries successfully processed for trip: #{@trip.id}")
+  end  
 
   # Additional sanity checks can be applied here.
   def filter_itineraries

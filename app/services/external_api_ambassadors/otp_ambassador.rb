@@ -141,15 +141,29 @@ class OTPAmbassador
   def prepare_http_requests
     Rails.logger.info("Preparing HTTP requests for request_types: #{@request_types.inspect}")
   
-    @request_types.map do |request_type|
-      {
-        label: request_type[:label], # Deduplication happens here
+    @queried_modes ||= {} # Persistent tracker across calls
+  
+    requests = @request_types.each_with_object([]) do |request_type, queries|
+      transport_modes = request_type[:modes].is_a?(Array) ? request_type[:modes] : []
+  
+      # Check if this trip_type + modes combination has already been queried
+      if @queried_modes[request_type[:label]]&.include?(transport_modes)
+        Rails.logger.info("Skipping duplicate query for trip_type: #{request_type[:label]} and modes: #{transport_modes.inspect}")
+        next
+      end
+  
+      # Track the trip_type + modes as queried
+      @queried_modes[request_type[:label]] ||= []
+      @queried_modes[request_type[:label]] << transport_modes
+  
+      queries << {
+        label: request_type[:label],
         url: "#{@otp.base_url}/otp/routers/default/index/graphql",
         body: @otp.build_graphql_body(
           [@trip.origin.lat, @trip.origin.lng],
           [@trip.destination.lat, @trip.destination.lng],
           @trip.trip_time,
-          request_type[:modes]
+          transport_modes
         ).to_json,
         headers: {
           'Content-Type' => 'application/json',
@@ -158,8 +172,10 @@ class OTPAmbassador
         }
       }
     end
-  end
   
+    Rails.logger.info("Final prepared requests: #{requests.map { |r| r[:label] }.uniq}")
+    requests
+  end
    
 
   # Formats the trip as an OTP request based on trip_type
@@ -182,21 +198,33 @@ class OTPAmbassador
   # them in an OTPResponse object
   def ensure_response(trip_type)
     Rails.logger.info("Ensuring response for trip_type: #{trip_type}")
-    
-    @cached_responses ||= {}
-    return @cached_responses[trip_type] if @cached_responses.key?(trip_type)
+    Rails.logger.info("Checking trip_type_dictionary for trip_type: #{trip_type}")
   
     trip_type_label = @trip_type_dictionary[trip_type][:label]
-    response = @http_request_bundler.response(trip_type_label)
-    status_code = @http_request_bundler.response_status_code(trip_type_label)
-  
-    if status_code == '200' && response.present?
-      @cached_responses[trip_type] = OTPResponse.new(response)
+    modes = if @trip_type_dictionary[trip_type][:modes].is_a?(String)
+      @trip_type_dictionary[trip_type][:modes].split(',').map { |mode| { mode: mode.strip } }
+    elsif @trip_type_dictionary[trip_type][:modes].is_a?(Array)
+      @trip_type_dictionary[trip_type][:modes]
     else
-      @cached_responses[trip_type] = { "error" => "HTTP Error #{status_code}" }
-    end
+      []
+    end  
+    # Call the `plan` method from OTPService
+    response = @otp.plan(
+      [@trip.origin.lat, @trip.origin.lng],
+      [@trip.destination.lat, @trip.destination.lng],
+      @trip.trip_time,
+      @trip.arrive_by,
+      modes
+    )
+
+    Rails.logger.info("Plan response for trip_type #{trip_type}: #{response.inspect}")
   
-    @cached_responses[trip_type]
+    if response['data'] && response['data']['plan'] && response['data']['plan']['itineraries']
+      OTPResponse.new(response)
+    else
+      Rails.logger.warn("No valid itineraries in response: #{response.inspect}")
+      { "error" => "No valid response from OTP GraphQL API" }
+    end
   end  
 
   # Converts an OTP itinerary hash into a set of 1-Click itinerary attributes

@@ -101,22 +101,13 @@ module OTP
 
     def build_graphql_body(from, to, trip_datetime, transport_modes)
       Rails.logger.info("Transpot Modes: #{transport_modes}")
-
-      formatted_modes = Array.wrap(transport_modes).map do |mode|
-        case mode
-        when Hash
-          if mode[:mode] == "FLEX"
-            "{ mode: #{mode[:mode]}, qualifier: #{mode[:qualifier]} }"
-          else
-            "{ mode: #{mode[:mode]} }"
-          end
-        when String
-          "{ mode: #{mode} }"
+      formatted_modes = transport_modes.map do |mode|
+        if mode[:mode] == "FLEX"
+          "{ mode: #{mode[:mode]}, qualifier: #{mode[:qualifier]} }"
         else
-          Rails.logger.warn("Unknown mode format: #{mode.inspect}")
-          nil
+          "{ mode: #{mode[:mode]} }"
         end
-      end.compact.join(", ")
+      end.join(", ")
       Rails.logger.info("Formatted Modes: #{formatted_modes}")
       {
         query: <<-GRAPHQL,
