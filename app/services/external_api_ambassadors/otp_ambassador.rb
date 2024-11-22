@@ -141,8 +141,14 @@ class OTPAmbassador
   def prepare_http_requests
     @request_types.map do |request_type|
       # Transform the mode string into the GraphQL-compatible format
-      transport_modes = request_type[:modes].split(',').map do |mode|
-        { mode: mode.strip } # Basic structure for modes
+      transport_modes = if request_type[:modes].is_a?(String)
+        # Split comma-separated string into individual modes
+        request_type[:modes].split(',').map { |mode| { mode: mode.strip } }
+      elsif request_type[:modes].is_a?(Array)
+        # Use the array of modes directly
+        request_type[:modes]
+      else
+        []
       end
   
       # Return the GraphQL request structure
