@@ -57,14 +57,9 @@ class OTPAmbassador
 
     # add http calls to bundler based on trip and modes
     prepare_http_requests.each do |request|
-      @http_request_bundler.add(
-        request[:label],
-        request[:url],
-        :post,
-        head: request[:headers],
-        body: request[:body]
-      )
-    end
+      next if @http_request_bundler.requests.key?(request[:label])
+      @http_request_bundler.add(request[:label], request[:url], request[:action])
+    end    
   end
 
   # Packages and returns any errors that came back with a given trip request
@@ -139,43 +134,34 @@ class OTPAmbassador
 
   # Prepares a list of HTTP requests for the HTTP Request Bundler, based on request types
   def prepare_http_requests
-    Rails.logger.info("Preparing HTTP requests for request_types: #{@request_types.inspect}")
+    @queried_requests ||= {}
   
-    @queried_modes ||= {} # Persistent tracker across calls
+    @request_types.map do |request_type|
+      label = request_type[:label]
+      modes = format_trip_as_otp_request(request_type)[:options][:mode]
   
-    requests = @request_types.each_with_object([]) do |request_type, queries|
-      transport_modes = request_type[:modes].is_a?(Array) ? request_type[:modes] : []
+      # Normalize modes for consistent tracking (e.g., ensure order is irrelevant)
+      normalized_modes = modes.split(',').sort.join(',')
   
-      # Check if this trip_type + modes combination has already been queried
-      if @queried_modes[request_type[:label]]&.include?(transport_modes)
-        Rails.logger.info("Skipping duplicate query for trip_type: #{request_type[:label]} and modes: #{transport_modes.inspect}")
+      # Skip if the query has already been prepared
+      if @queried_requests[label]&.include?(normalized_modes)
+        Rails.logger.info("Skipping duplicate request for label: #{label}, modes: #{normalized_modes}")
         next
       end
   
-      # Track the trip_type + modes as queried
-      @queried_modes[request_type[:label]] ||= []
-      @queried_modes[request_type[:label]] << transport_modes
+      # Track the request
+      @queried_requests[label] ||= []
+      @queried_requests[label] << normalized_modes
   
-      queries << {
-        label: request_type[:label],
-        url: "#{@otp.base_url}/otp/routers/default/index/graphql",
-        body: @otp.build_graphql_body(
-          [@trip.origin.lat, @trip.origin.lng],
-          [@trip.destination.lat, @trip.destination.lng],
-          @trip.trip_time,
-          transport_modes
-        ).to_json,
-        headers: {
-          'Content-Type' => 'application/json',
-          'x-user-email' => '1-click@camsys.com',
-          'x-user-token' => 'sRRTZ3BV3tmms1o4QNk2'
-        }
+      # Build the request object
+      {
+        label: label,
+        url: @otp.plan_url(format_trip_as_otp_request(request_type)),
+        action: :get
       }
-    end
-  
-    Rails.logger.info("Final prepared requests: #{requests.map { |r| r[:label] }.uniq}")
-    requests
+    end.compact
   end
+  
    
 
   # Formats the trip as an OTP request based on trip_type
