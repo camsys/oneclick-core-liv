@@ -113,7 +113,7 @@ module OTP
               to: { lat: $toLat, lon: $toLon }
               date: $date
               time: $time
-              transportModes: #{transport_modes.to_json}
+              transportModes: #{transport_modes.map { |mode| "{ mode: #{mode[:mode].inspect}#{", qualifier: #{mode[:qualifier].inspect}" if mode[:qualifier]} }" }.join(", ")}
             ) {
               itineraries {
                 startTime
