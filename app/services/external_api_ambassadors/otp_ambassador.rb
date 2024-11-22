@@ -51,7 +51,13 @@ class OTPAmbassador
 
     # add http calls to bundler based on trip and modes
     prepare_http_requests.each do |request|
-      @http_request_bundler.add(request[:label], request[:url], request[:action])
+      @http_request_bundler.add(
+        request[:label],
+        request[:url],
+        :post,
+        head: request[:headers],
+        body: request[:body]
+      )
     end
   end
 
@@ -120,11 +126,22 @@ class OTPAmbassador
     @request_types.map do |request_type|
       {
         label: request_type[:label],
-        url: @otp.plan_url(format_trip_as_otp_request(request_type)),
-        action: :get
+        url: "#{@otp.base_url}/otp/routers/default/index/graphql",
+        action: :post,
+        body: @otp.build_graphql_body(
+          [@trip.origin.lat, @trip.origin.lng],
+          [@trip.destination.lat, @trip.destination.lng],
+          @trip.trip_time,
+          format_trip_modes(request_type)
+        ).to_json,
+        headers: {
+          'Content-Type' => 'application/json',
+          'x-user-email' => '1-click@camsys.com',
+          'x-user-token' => 'sRRTZ3BV3tmms1o4QNk2'
+        }
       }
     end
-  end
+  end  
 
   # Formats the trip as an OTP request based on trip_type
   def format_trip_as_otp_request(trip_type)

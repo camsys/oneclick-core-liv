@@ -19,30 +19,136 @@ module OTP
     # Makes multiple OTP requests in parallel, and returns once they're all done.
     # Send it a list or array of request hashes.
     def multi_plan(*requests)
-      requests = requests.flatten.uniq {|req| req[:label]} # Discard any requests with duplicate labels
-      responses = nil
-      EM.run do
-        multi = EM::MultiRequest.new
-        requests.each_with_index do |request, i|
-          url = plan_url(request)
-          multi.add (request[:label] || "req#{i}".to_sym), EM::HttpRequest.new(url, connect_timeout: 60, inactivity_timeout: 60, tls: {verify_peer: true}).get
-        end
-
-        responses = nil
-        multi.callback do
-          EM.stop
-          responses = multi.responses 
+      requests = requests.flatten.uniq { |req| req[:label] } # Discard duplicate labels
+    
+      bundler = HTTPRequestBundler.new
+    
+      # Add all requests to the bundler, iterating over request types
+      requests.each_with_index do |request, i|
+        request_types = determine_request_types(request[:options]) # Existing logic for determining trip types
+    
+        request_types.each do |type, type_options|
+          transport_modes = type_options[:modes] # Modes for this trip type
+          body = build_graphql_body(
+            request[:from],
+            request[:to],
+            request[:trip_time],
+            transport_modes
+          )
+          url = "#{@base_url}/otp/routers/default/index/graphql"
+    
+          label = "#{request[:label] || "req#{i}"}_#{type}".to_sym
+          bundler.add(label, url, :post, head: { 'Content-Type' => 'application/json' }, body: body.to_json)
         end
       end
-
-      return responses
-
+    
+      bundler.make_calls
+    
+      # Return the parsed responses
+      bundler.responses
     end
+    
 
     # Constructs an OTP request url
     def plan_url(request)
       build_url(request[:from], request[:to], request[:trip_time], request[:arrive_by], request[:options] || {})
     end
+
+    def plan(from, to, trip_datetime, arrive_by = true, transport_modes = nil, options = {})
+      # Default modes based on options or transport_modes
+      transport_modes ||= determine_default_modes(options) # Logic to get default modes
+
+      # GraphQL endpoint
+      url = "#{@base_url}/otp/routers/default/index/graphql"
+
+      # Build GraphQL body
+      body = build_graphql_body(from, to, trip_datetime, transport_modes)
+      
+      headers = {
+        'Content-Type' => 'application/json',
+        'x-user-email' => '1-click@camsys.com',
+        'x-user-token' => 'sRRTZ3BV3tmms1o4QNk2'
+      }
+
+      # Use HTTPRequestBundler for a single request
+      bundler = HTTPRequestBundler.new
+      bundler.add(:plan_request, url, :post, head: headers, body: body.to_json)
+      bundler.make_calls
+
+      # Process and parse the response
+      response = bundler.response(:plan_request)
+      Rails.logger.info("GraphQL Response: #{response}")
+
+      JSON.parse(response["response"].to_s)
+    end
+
+    def determine_request_types(options = {})
+      {
+        transit: { modes: [{ mode: "TRANSIT" }] },
+        walk: { modes: [{ mode: "WALK" }] },
+        flex_direct: { modes: [{ mode: "FLEX", qualifier: "DIRECT" }] },
+        flex_access: { modes: [{ mode: "FLEX", qualifier: "ACCESS" }] },
+        flex_egress: { modes: [{ mode: "FLEX", qualifier: "EGRESS" }] }
+      }.select do |type, _|
+        # Your original logic for including/excluding trip types
+        options[:allow_flex] || type != :flex_direct
+      end
+    end
+
+    def build_graphql_body(from, to, trip_datetime, transport_modes)
+      {
+        query: <<-GRAPHQL,
+          query($fromLat: Float!, $fromLon: Float!, $toLat: Float!, $toLon: Float!, $date: String!, $time: String!) {
+            plan(
+              from: { lat: $fromLat, lon: $fromLon }
+              to: { lat: $toLat, lon: $toLon }
+              date: $date
+              time: $time
+              transportModes: #{transport_modes.to_json}
+            ) {
+              itineraries {
+                startTime
+                endTime
+                duration
+                walkTime
+                waitingTime
+                walkDistance
+                fares {
+                  type
+                  cents
+                  currency
+                }
+                legs {
+                  mode
+                  distance
+                  from {
+                    name
+                    lat
+                    lon
+                  }
+                  to {
+                    name
+                    lat
+                    lon
+                  }
+                }
+              }
+            }
+          }
+        GRAPHQL
+        variables: {
+          fromLat: from[0].to_f,
+          fromLon: from[1].to_f,
+          toLat: to[0].to_f,
+          toLon: to[1].to_f,
+          date: trip_datetime.strftime("%Y-%m-%d"),
+          time: trip_datetime.strftime("%H:%M")
+        }
+      }
+    end
+    
+
+
 
     ###
     # from and to should be [lat,lng] arrays;
