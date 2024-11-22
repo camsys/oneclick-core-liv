@@ -212,6 +212,7 @@ module OTP
       # Set Default Options
       arrive_by = arrive_by.nil? ? true : arrive_by
       mode = options[:mode] || "TRANSIT,WALK"
+      mode = mode.is_a?(Array) ? mode.join(',') : mode
       wheelchair = options[:wheelchair] || "false"
       walk_speed = options[:walk_speed] || 3.0 #walk_speed is defined in MPH and converted to m/s before going to OTP
       max_walk_distance = options[:max_walk_distance] || 2 #max_walk_distance is defined in miles and converted to meters before going to OTP v1
