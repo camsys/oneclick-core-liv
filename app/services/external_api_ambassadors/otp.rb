@@ -82,6 +82,7 @@ module OTP
 
       # Process and parse the response
       response = bundler.response(:plan_request)
+      Rails.logger.info("Raw GraphQL Response: #{response.inspect}")
       Rails.logger.info("GraphQL Response: #{response}")
 
       JSON.parse(response["response"].to_s)
