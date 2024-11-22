@@ -126,19 +126,57 @@ module OTP
                   type
                   cents
                   currency
+                  components {
+                    fareId
+                    currency
+                    cents
+                    routes {
+                      gtfsId
+                      shortName
+                    }
+                  }
                 }
                 legs {
                   mode
                   distance
+                  route { 
+                    gtfsId
+                    shortName
+                    longName
+                    agency {
+                      gtfsId
+                      name
+                    }
+                  }
                   from {
                     name
                     lat
                     lon
+                    departureTime
                   }
                   to {
                     name
                     lat
                     lon
+                    arrivalTime
+                  }
+                  fareProducts {
+                    id
+                    product {
+                      name
+                      ... on DefaultFareProduct {
+                        price {
+                          amount
+                          currency {
+                            code
+                            digits
+                          }
+                        }
+                      }
+                      riderCategory {
+                        name
+                      }
+                    }
                   }
                 }
               }
