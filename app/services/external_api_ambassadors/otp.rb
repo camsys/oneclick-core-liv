@@ -369,7 +369,6 @@ module OTP
     def initialize(response)
       response = JSON.parse(response) if response.is_a?(String)
       @response = response.with_indifferent_access
-      Rails.logger.info("Parsing OTP response: #{@response.inspect}")
       @itineraries = extract_itineraries
     end
 
@@ -385,7 +384,6 @@ module OTP
       itineraries = @response.dig('data', 'plan', 'itineraries')
       
       # Log the extracted itineraries for debugging
-      Rails.logger.info("Extracted itineraries: #{itineraries.inspect}")
       
       # Return an empty array if itineraries are nil or not an array
       return [] unless itineraries.is_a?(Array)

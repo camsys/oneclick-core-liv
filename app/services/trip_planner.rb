@@ -17,7 +17,8 @@ class TripPlanner
   def initialize(trip, options={})
     @trip = trip
     @options = options
-    @trip_types = (options[:trip_types] || TRIP_TYPES) & TRIP_TYPES # Set to only valid trip_types, all by default
+    @trip_types = (options[:trip_types] || TRIP_TYPES) & TRIP_TYPES
+    Rails.logger.info("TripPlanner initialized with trip_types: #{@trip_types} and options: #{@options.inspect}")
     if Config.open_trip_planner_version != 'v1' && (@trip_types.include?(:car) && @trip_types.include?(:transit))
       @trip_types.push(:car_park)
     end    
@@ -45,14 +46,19 @@ class TripPlanner
 
   # Constructs Itineraries for the Trip based on the options passed
   def plan
+    Rails.logger.info("Starting plan method for trip: #{@trip.id}")
+
     # Identify available services and set instance variable for use in building itineraries
     set_available_services
-    
+    Rails.logger.info("Available services set: #{@available_services.inspect}")
+
     # Sets up external ambassadors
     prepare_ambassadors
+    Rails.logger.info("Ambassadors prepared.")
 
     # Build itineraries for each requested trip_type, then save the trip
     build_all_itineraries
+    Rails.logger.info("All itineraries built.")
 
     # Run through post-planning filters
     filter_itineraries
@@ -146,24 +152,34 @@ class TripPlanner
   def build_all_itineraries
     Rails.logger.info("Building all itineraries for trip types: #{@trip_types}")
     
-    trip_itineraries = @trip_types.flat_map { |t| build_itineraries(t) }
+    trip_itineraries = @trip_types.flat_map do |t|
+      Rails.logger.info("Processing trip type: #{t}")
+      build_itineraries(t)
+    end
     
     Rails.logger.info("Built itineraries: #{trip_itineraries.inspect}")
     
     new_itineraries = trip_itineraries.reject(&:persisted?)
     old_itineraries = trip_itineraries.select(&:persisted?)
-  
-    Rails.logger.info("New itineraries: #{new_itineraries.inspect}")
-    Rails.logger.info("Old itineraries: #{old_itineraries.inspect}")
-  
+    
+    Rails.logger.info("New itineraries count: #{new_itineraries.count}")
+    Rails.logger.info("Old itineraries count: #{old_itineraries.count}")
+    
     Itinerary.transaction do
-      old_itineraries.each(&:save!)
+      old_itineraries.each do |itin|
+        Rails.logger.info("Saving existing itinerary: #{itin.inspect}")
+        itin.save!
+      end
+      
+      Rails.logger.info("Adding new itineraries to trip: #{new_itineraries.map(&:inspect)}")
       @trip.itineraries += new_itineraries
     end
   end  
 
   # Additional sanity checks can be applied here.
   def filter_itineraries
+    Rails.logger.info("Filtering itineraries for trip #{@trip.id}. Initial count: #{@trip.itineraries.count}")
+
     walk_seen = false
     max_walk_minutes = Config.max_walk_minutes
     max_walk_distance = Config.max_walk_distance
@@ -208,6 +224,7 @@ class TripPlanner
     itineraries.delete(nil)
 
     @trip.itineraries = itineraries
+    Rails.logger.info("Filtered itineraries count: #{@trip.itineraries.count}")
   end
 
   # Calls the requisite trip_type itineraries method
@@ -394,9 +411,7 @@ class TripPlanner
 
   # Generic OTP Call
   def build_fixed_itineraries trip_type
-    Rails.logger.info("Building fixed itineraries for trip_type: #{trip_type}")
     itineraries = @router.get_itineraries(trip_type)
-    Rails.logger.info("Itineraries fetched from OTPAmbassador for #{trip_type}: #{itineraries.inspect}")
     itineraries.map { |i| Itinerary.new(i) }
   end
 

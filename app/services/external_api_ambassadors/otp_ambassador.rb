@@ -139,6 +139,7 @@ class OTPAmbassador
 
   # Prepares a list of HTTP requests for the HTTP Request Bundler, based on request types
   def prepare_http_requests
+    Rails.logger.info("Preparing HTTP requests for request_types: #{@request_types.inspect}")
     @request_types.map do |request_type|
       # Transform the mode string into the GraphQL-compatible format
       transport_modes = if request_type[:modes].is_a?(String)
@@ -189,6 +190,9 @@ class OTPAmbassador
   # Fetches responses from the HTTP Request Bundler, and packages
   # them in an OTPResponse object
   def ensure_response(trip_type)
+    Rails.logger.info("Ensuring response for trip_type: #{trip_type}")
+    Rails.logger.info("Checking trip_type_dictionary for trip_type: #{trip_type}")
+  
     trip_type_label = @trip_type_dictionary[trip_type][:label]
     modes = if @trip_type_dictionary[trip_type][:modes].is_a?(String)
       @trip_type_dictionary[trip_type][:modes].split(',').map { |mode| { mode: mode.strip } }
@@ -206,11 +210,9 @@ class OTPAmbassador
       modes
     )
 
-    Rails.logger.info("Response from OTPService for trip_type #{trip_type}: #{response.inspect}")
-    Rails.logger.info("Validating OTP response for trip_type: #{trip_type}")
+    Rails.logger.info("Plan response for trip_type #{trip_type}: #{response.inspect}")
   
     if response['data'] && response['data']['plan'] && response['data']['plan']['itineraries']
-      Rails.logger.info("Valid itineraries found: #{response['data']['plan']['itineraries']}")
       OTPResponse.new(response)
     else
       Rails.logger.warn("No valid itineraries in response: #{response.inspect}")
@@ -220,11 +222,9 @@ class OTPAmbassador
 
   # Converts an OTP itinerary hash into a set of 1-Click itinerary attributes
   def convert_itinerary(otp_itin, trip_type)
-    Rails.logger.info("OTP Itinerary: #{otp_itin.inspect}")
     Rails.logger.info("Trip Type: #{trip_type}")
     associate_legs_with_services(otp_itin)
   
-    Rails.logger.info("Converting itinerary: #{otp_itin.inspect}")
   
     service_id = otp_itin["legs"].detect { |leg| leg['serviceId'].present? }&.fetch('serviceId', nil)
     start_time = otp_itin["legs"].first["from"]["departureTime"]
@@ -250,12 +250,10 @@ class OTPAmbassador
 
   # Modifies OTP Itin's legs, inserting information about 1-Click services
   def associate_legs_with_services(otp_itin)
-    Rails.logger.info "Inspecting OTP itinerary structure: #{otp_itin.inspect}"
   
     itinerary = otp_itin.is_a?(Hash) ? otp_itin['itinerary'] : otp_itin.itinerary
   
     unless itinerary
-      Rails.logger.error("Error: Expected itinerary missing from otp_itin. Check structure.")
       return
     end
   
@@ -280,7 +278,6 @@ class OTPAmbassador
 
   def get_associated_service_for(leg)
     leg ||= {}
-    Rails.logger.info "Inspecting leg: #{leg.inspect}"
   
     # Extract GTFS agency ID and name from the route's agency field
     gtfs_agency_id = leg.dig('route', 'agency', 'gtfsId')
