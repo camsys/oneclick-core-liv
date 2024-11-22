@@ -88,7 +88,7 @@ module OTP
       Rails.logger.info("Raw GraphQL Response: #{response.inspect}")
       Rails.logger.info("GraphQL Response: #{response}")
 
-      JSON.parse(response["response"].to_s)
+      response    
     end
 
     def determine_request_types(options = {})
