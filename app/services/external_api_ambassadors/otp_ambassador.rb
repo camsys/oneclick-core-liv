@@ -140,29 +140,23 @@ class OTPAmbassador
   # Prepares a list of HTTP requests for the HTTP Request Bundler, based on request types
   def prepare_http_requests
     Rails.logger.info("Preparing HTTP requests for request_types: #{@request_types.inspect}")
-    
-    # Track processed modes to prevent duplicate queries
-    queried_modes = []
   
-    @request_types.each_with_object([]) do |request_type, requests|
-      transport_modes = if request_type[:modes].is_a?(String)
-        request_type[:modes].split(',').map { |mode| { mode: mode.strip } }
-      elsif request_type[:modes].is_a?(Array)
-        request_type[:modes]
-      else
-        []
-      end
+    @queried_modes ||= {} # Persistent tracker across calls
   
-      # Skip if this mode has already been queried
-      if transport_modes.any? { |mode| queried_modes.include?(mode) }
-        Rails.logger.info("Skipping duplicate query for modes: #{transport_modes.inspect}")
+    requests = @request_types.each_with_object([]) do |request_type, queries|
+      transport_modes = request_type[:modes].is_a?(Array) ? request_type[:modes] : []
+  
+      # Check if this trip_type + modes combination has already been queried
+      if @queried_modes[request_type[:label]]&.include?(transport_modes)
+        Rails.logger.info("Skipping duplicate query for trip_type: #{request_type[:label]} and modes: #{transport_modes.inspect}")
         next
       end
   
-      # Add new modes to queried list
-      queried_modes.concat(transport_modes)
+      # Track the trip_type + modes as queried
+      @queried_modes[request_type[:label]] ||= []
+      @queried_modes[request_type[:label]] << transport_modes
   
-      requests << {
+      queries << {
         label: request_type[:label],
         url: "#{@otp.base_url}/otp/routers/default/index/graphql",
         body: @otp.build_graphql_body(
@@ -178,6 +172,9 @@ class OTPAmbassador
         }
       }
     end
+  
+    Rails.logger.info("Final prepared requests: #{requests.map { |r| r[:label] }.uniq}")
+    requests
   end
    
 
