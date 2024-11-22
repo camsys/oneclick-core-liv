@@ -314,6 +314,7 @@ class OTPAmbassador
       end
     else
       Rails.logger.warn "No matching service found for leg."
+      nil
     end
   end
   
