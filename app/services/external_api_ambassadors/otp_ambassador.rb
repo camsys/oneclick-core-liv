@@ -215,16 +215,16 @@ class OTPAmbassador
                           .detect{ |leg| leg['serviceId'].present? }
                           &.fetch('serviceId', nil)
 
-    return {
-      start_time: Time.at(otp_itin["startTime"].to_i/1000).in_time_zone,
-      end_time: Time.at(otp_itin["endTime"].to_i/1000).in_time_zone,
-      transit_time: get_transit_time(otp_itin, trip_type),
-      walk_time: get_walk_time(otp_itin, trip_type),
-      wait_time: get_wait_time(otp_itin),
-      walk_distance: get_walk_distance(otp_itin),
-      cost: extract_cost(otp_itin, trip_type),
-      legs: otp_itin.legs.to_a,
-      trip_type: trip_type, #TODO: Make this smarter
+    return   {
+      start_time: Time.at(otp_itin["startTime"].to_i / 1000).in_time_zone,
+      end_time: Time.at(otp_itin["endTime"].to_i / 1000).in_time_zone,
+      transit_time: calculate_transit_time(otp_itin) || 0,
+      walk_time: otp_itin["walkTime"],
+      wait_time: otp_itin["waitingTime"],
+      walk_distance: otp_itin["walkDistance"],
+      cost: calculate_cost(otp_itin),
+      legs: otp_itin["legs"],
+      trip_type: trip_type,
       service_id: service_id
     }
   end
@@ -274,11 +274,7 @@ class OTPAmbassador
 
   # OTP Lists Car and Walk as having 0 transit time
   def get_transit_time(otp_itin, trip_type)
-    if trip_type.in? [:car, :bicycle]
-      return otp_itin["walkTime"]
-    else
-      return otp_itin["transitTime"]
-    end
+    otp_itin["duration"] - otp_itin["walkTime"] - otp_itin["waitingTime"]
   end
 
   # OTP returns car and bicycle time as walk time
@@ -301,16 +297,20 @@ class OTPAmbassador
 
   # Extracts cost from OTP itinerary
   def extract_cost(otp_itin, trip_type)
-    # OTP returns a nil cost for walk trips.  nil means unknown, so it should be zero instead
     case trip_type
     when [:walk, :bicycle]
       return 0.0
     when [:car]
       return nil
     end
-
-    otp_itin.fare_in_dollars
-  end
+  
+    # Updated fare extraction logic
+    if otp_itin["fares"].present?
+      otp_itin["fares"].sum { |fare| fare["price"] || 0.0 }
+    else
+      0.0 
+    end
+  end  
 
   # Extracts total distance from OTP itinerary
   # default conversion factor is for converting meters to miles
