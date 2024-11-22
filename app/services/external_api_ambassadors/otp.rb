@@ -105,13 +105,14 @@ module OTP
       normalized_modes = Array(transport_modes)
 
       formatted_modes = normalized_modes.map do |mode|
-        if mode[:mode] == "FLEX"
+        if mode.is_a?(Hash) && mode[:mode] == "FLEX"
           "{ mode: #{mode[:mode]}, qualifier: #{mode[:qualifier]} }"
-        else
+        elsif mode.is_a?(Hash)
           "{ mode: #{mode[:mode]} }"
+        else
+          "{ mode: #{mode} }"
         end
       end.join(", ")
-      Rails.logger.info("Formatted Modes: #{formatted_modes}")
       {
         query: <<-GRAPHQL,
           query($fromLat: Float!, $fromLon: Float!, $toLat: Float!, $toLon: Float!, $date: String!, $time: String!) {
