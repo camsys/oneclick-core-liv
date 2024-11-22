@@ -85,8 +85,6 @@ module OTP
 
       # Process and parse the response
       response = bundler.response(:plan_request)
-      Rails.logger.info("Raw GraphQL Response: #{response.inspect}")
-      Rails.logger.info("GraphQL Response: #{response}")
 
       response    
     end
@@ -328,7 +326,9 @@ module OTP
     # Pass a response body hash (e.g. parsed JSON) to initialize
     def initialize(response)
       response = JSON.parse(response) if response.is_a?(String)
+      Rails.logger.info("Parsing OTP response: #{response.inspect}")
       @response = response.with_indifferent_access
+      Rails.logger.info("Parsing OTP response: #{@response.inspect}")
       @itineraries = extract_itineraries
     end
 
