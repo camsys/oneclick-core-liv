@@ -155,19 +155,7 @@ module OTP
     # trip_datetime should be a DateTime object;
     # arrive_by should be a boolean
     # Accepts a hash of additional options, none of which are required to make the plan call run
-    def plan(from, to, trip_datetime, arrive_by=true, options={})
 
-      url = build_url(from, to, trip_datetime, arrive_by, options)
-
-      begin
-        resp = Net::HTTP.get_response(URI.parse(url))
-      rescue Exception=>e
-        return {'id'=>500, 'msg'=>e.to_s}
-      end
-
-      return resp
-
-    end
 
     def build_url(from, to, trip_datetime, arrive_by, options={})
       # Set Default Options
