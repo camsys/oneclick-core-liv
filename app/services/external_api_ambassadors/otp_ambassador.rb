@@ -140,20 +140,29 @@ class OTPAmbassador
   # Prepares a list of HTTP requests for the HTTP Request Bundler, based on request types
   def prepare_http_requests
     Rails.logger.info("Preparing HTTP requests for request_types: #{@request_types.inspect}")
-    @request_types.map do |request_type|
-      # Transform the mode string into the GraphQL-compatible format
+    
+    # Track processed modes to prevent duplicate queries
+    queried_modes = []
+  
+    @request_types.each_with_object([]) do |request_type, requests|
       transport_modes = if request_type[:modes].is_a?(String)
-        # Split comma-separated string into individual modes
         request_type[:modes].split(',').map { |mode| { mode: mode.strip } }
       elsif request_type[:modes].is_a?(Array)
-        # Use the array of modes directly
         request_type[:modes]
       else
         []
       end
   
-      # Return the GraphQL request structure
-      {
+      # Skip if this mode has already been queried
+      if transport_modes.any? { |mode| queried_modes.include?(mode) }
+        Rails.logger.info("Skipping duplicate query for modes: #{transport_modes.inspect}")
+        next
+      end
+  
+      # Add new modes to queried list
+      queried_modes.concat(transport_modes)
+  
+      requests << {
         label: request_type[:label],
         url: "#{@otp.base_url}/otp/routers/default/index/graphql",
         body: @otp.build_graphql_body(
@@ -169,7 +178,8 @@ class OTPAmbassador
         }
       }
     end
-  end  
+  end
+   
 
   # Formats the trip as an OTP request based on trip_type
   def format_trip_as_otp_request(trip_type)
