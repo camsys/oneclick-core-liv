@@ -341,7 +341,7 @@ module OTP
     # Returns the array of itineraries
     def extract_itineraries
       # Use dig to safely navigate the response
-      itineraries = @response.dig('plan', 'itineraries') || @response.dig(:plan, :itineraries)
+      itineraries = @response.dig('data', 'plan', 'itineraries')
       
       # Log the extracted itineraries for debugging
       Rails.logger.info("Extracted itineraries: #{itineraries.inspect}")
