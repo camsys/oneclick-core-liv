@@ -218,7 +218,7 @@ class OTPAmbassador
     return   {
       start_time: Time.at(otp_itin["startTime"].to_i / 1000).in_time_zone,
       end_time: Time.at(otp_itin["endTime"].to_i / 1000).in_time_zone,
-      transit_time: calculate_transit_time(otp_itin) || 0,
+      transit_time: get_transit_time(otp_itin, trip_type),
       walk_time: otp_itin["walkTime"],
       wait_time: otp_itin["waitingTime"],
       walk_distance: otp_itin["walkDistance"],
