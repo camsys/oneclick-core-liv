@@ -214,10 +214,11 @@ class OTPAmbassador
     service_id = otp_itin.legs
                           .detect{ |leg| leg['serviceId'].present? }
                           &.fetch('serviceId', nil)
-
+      start_time = otp_itin["startTime"]
+      end_time = otp_itin["endTime"]
     return   {
-      start_time: Time.at(otp_itin["startTime"].to_i / 1000).in_time_zone,
-      end_time: Time.at(otp_itin["endTime"].to_i / 1000).in_time_zone,
+      start_time: start_time ? Time.at(start_time.to_i / 1000).in_time_zone : nil,
+      end_time: end_time ? Time.at(end_time.to_i / 1000).in_time_zone : nil,
       transit_time: get_transit_time(otp_itin, trip_type),
       walk_time: otp_itin["walkTime"],
       wait_time: otp_itin["waitingTime"],
