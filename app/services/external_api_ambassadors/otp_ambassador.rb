@@ -80,10 +80,20 @@ class OTPAmbassador
 
   # Returns an array of 1-Click-ready itinerary hashes.
   def get_itineraries(trip_type)
-    return [] if errors(trip_type)
-    itineraries = ensure_response(trip_type).itineraries
-    return itineraries.map {|i| convert_itinerary(i, trip_type)}.compact
+    Rails.logger.info("Fetching itineraries for trip_type: #{trip_type}")
+  
+    if errors(trip_type)
+      Rails.logger.error("Errors found for trip_type #{trip_type}: #{errors(trip_type).inspect}")
+      return []
+    end
+  
+    itineraries = ensure_response(trip_type)&.itineraries || []
+    
+    Rails.logger.info("Raw itineraries fetched for #{trip_type}: #{itineraries.inspect}")
+    
+    itineraries.map { |i| convert_itinerary(i, trip_type) }.compact
   end
+  
 
   # Extracts a trip duration from the OTP response.
   def get_duration(trip_type)
@@ -178,6 +188,8 @@ class OTPAmbassador
       @trip.arrive_by,
       modes
     )
+
+    Rails.logger.info("Response from OTPService for trip_type #{trip_type}: #{response.inspect}")
   
     if response['data'] && response['data']['plan']
       OTPResponse.new(response)

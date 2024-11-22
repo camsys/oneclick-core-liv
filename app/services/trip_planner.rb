@@ -144,15 +144,23 @@ class TripPlanner
   
   # Builds itineraries for all trip types
   def build_all_itineraries
-    trip_itineraries = @trip_types.flat_map {|t| build_itineraries(t)}
+    Rails.logger.info("Building all itineraries for trip types: #{@trip_types}")
+    
+    trip_itineraries = @trip_types.flat_map { |t| build_itineraries(t) }
+    
+    Rails.logger.info("Built itineraries: #{trip_itineraries.inspect}")
+    
     new_itineraries = trip_itineraries.reject(&:persisted?)
     old_itineraries = trip_itineraries.select(&:persisted?)
-
+  
+    Rails.logger.info("New itineraries: #{new_itineraries.inspect}")
+    Rails.logger.info("Old itineraries: #{old_itineraries.inspect}")
+  
     Itinerary.transaction do
       old_itineraries.each(&:save!)
       @trip.itineraries += new_itineraries
     end
-  end
+  end  
 
   # Additional sanity checks can be applied here.
   def filter_itineraries
@@ -216,6 +224,7 @@ class TripPlanner
 
   # # # Builds transit itineraries, using OTP by default
   def build_transit_itineraries
+    Rails.logger.info("Building transit itineraries...")
     build_fixed_itineraries :transit
   end
 
@@ -385,7 +394,10 @@ class TripPlanner
 
   # Generic OTP Call
   def build_fixed_itineraries trip_type
-    @router.get_itineraries(trip_type).map {|i| Itinerary.new(i)}
+    Rails.logger.info("Building fixed itineraries for trip_type: #{trip_type}")
+    itineraries = @router.get_itineraries(trip_type)
+    Rails.logger.info("Itineraries fetched from OTPAmbassador for #{trip_type}: #{itineraries.inspect}")
+    itineraries.map { |i| Itinerary.new(i) }
   end
 
 end
