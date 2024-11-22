@@ -206,19 +206,20 @@ class OTPAmbassador
     Rails.logger.info("OTP Itinerary: #{otp_itin.inspect}")
     Rails.logger.info("Trip Type: #{trip_type}")
     associate_legs_with_services(otp_itin)
-    itin_has_invalid_leg = otp_itin.legs.detect{ |leg| 
-      leg['serviceName'] && leg['serviceId'].nil?
-    }
-    return nil if itin_has_invalid_leg
-
-    service_id = otp_itin.legs
-                          .detect{ |leg| leg['serviceId'].present? }
-                          &.fetch('serviceId', nil)
-      start_time = otp_itin["startTime"]
-      end_time = otp_itin["endTime"]
-    return   {
-      start_time: start_time ? Time.at(start_time.to_i / 1000).in_time_zone : nil,
-      end_time: end_time ? Time.at(end_time.to_i / 1000).in_time_zone : nil,
+  
+    Rails.logger.info("Converting itinerary: #{otp_itin.inspect}")
+  
+    service_id = otp_itin["legs"].detect { |leg| leg['serviceId'].present? }&.fetch('serviceId', nil)
+    start_time = otp_itin["legs"].first["from"]["departureTime"]
+    end_time = otp_itin["legs"].last["to"]["arrivalTime"]
+  
+    # Set startTime and endTime in the first and last legs for UI compatibility
+    otp_itin["legs"].first["startTime"] = start_time
+    otp_itin["legs"].last["endTime"] = end_time
+  
+    {
+      start_time: Time.at(start_time.to_i / 1000).in_time_zone,
+      end_time: Time.at(end_time.to_i / 1000).in_time_zone,
       transit_time: get_transit_time(otp_itin, trip_type),
       walk_time: otp_itin["walkTime"],
       wait_time: otp_itin["waitingTime"],
@@ -232,11 +233,22 @@ class OTPAmbassador
 
   # Modifies OTP Itin's legs, inserting information about 1-Click services
   def associate_legs_with_services(otp_itin)
-    otp_itin.legs ||= []
-    otp_itin.legs = otp_itin.legs.map do |leg|
+  Rails.logger.info "Inspecting OTP itinerary structure: #{otp_itin.inspect}"
+
+  itineraries = otp_itin['itineraries'] || otp_itin.dig('plan', 'itineraries')
+  
+  if itineraries.nil?
+    Rails.logger.error("Error: Expected 'itineraries' array missing from otp_itin. Check structure.")
+    return
+  end
+
+  # Proceed if itineraries are found
+  itineraries.each do |itinerary|
+    itinerary['legs'] ||= []
+
+    itinerary['legs'] = itinerary['legs'].map do |leg|
       svc = get_associated_service_for(leg)
 
-      # double check if its paratransit but not set to that mode
       if !leg['mode'].include?('FLEX') && leg['boardRule'] == 'mustPhone'
         leg['mode'] = 'FLEX_ACCESS'
       end
@@ -244,16 +256,17 @@ class OTPAmbassador
       if svc
         leg['serviceId'] = svc.id
         leg['serviceName'] = svc.name
-        leg['serviceFareInfo'] = svc.url  # Should point to service's fare_info_url, but we don't have that yet
+        leg['serviceFareInfo'] = svc.url
         leg['serviceLogoUrl'] = svc.full_logo_url
-        leg['serviceFullLogoUrl'] = svc.full_logo_url(nil) # actual size
+        leg['serviceFullLogoUrl'] = svc.full_logo_url(nil)
       else
-        leg['serviceName'] = (leg['agencyName'] || leg['agencyId'])
+        leg['serviceName'] = leg['agencyName'] || leg['agencyId']
       end
 
       leg
     end
   end
+end
 
   def get_associated_service_for(leg)
     svc = nil
