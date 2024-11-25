@@ -281,94 +281,40 @@ class TripPlanner
       return []
     end
   
-    Rails.logger.info("Available paratransit services count: #{@available_services[:paratransit].count}")
+    # Fetch itineraries directly from OTP
+    otp_itineraries = build_fixed_itineraries(:paratransit).select { |itin| itin.service_id.present? }
+    Rails.logger.info("OTP itineraries with valid service IDs count: #{otp_itineraries.count}")
   
-    # Initialize storage for OTP itineraries
-    router_paratransit_itineraries = []
+    # Build an itinerary for each service without additional filtering
+    itineraries = otp_itineraries.map do |itin|
+      Rails.logger.info("Building itinerary for service ID: #{itin.service_id}")
   
-    if Config.open_trip_planner_version == 'v2'
-  
-      # Build OTP itineraries and filter those with valid service IDs
-      otp_itineraries = build_fixed_itineraries(:paratransit).select { |itin| itin.service_id.present? }
-      Rails.logger.info("OTP itineraries with valid service IDs count: #{otp_itineraries.count}")
-  
-      # Extract unique service names from OTP itineraries
-      otp_service_names = otp_itineraries.map { |itin| itin.legs.first['route']['agency']['name'] rescue nil }.compact.uniq
-      Rails.logger.info("OTP itineraries service names: #{otp_service_names.join(', ')}")
-  
-      # Filter OTP itineraries based on service name match
-      router_paratransit_itineraries += otp_itineraries.select do |itin|
-        itin.legs.any? do |leg|
-          leg['route'] && leg['route']['agency'] && otp_service_names.include?(leg['route']['agency']['name'])
-        end
-      end
-  
-      Rails.logger.info("Filtered router paratransit itineraries count: #{router_paratransit_itineraries.count}")
-    end
-  
-    # Retrieve paratransit services explicitly permitted
-    paratransit_services = @available_services[:paratransit].where(gtfs_agency_id: ["", nil])
-  
-    # Check booking API configurations
-    allowed_api = Config.booking_api
-    if allowed_api == "none"
-      Rails.logger.info("Booking API config set to 'none'. Returning router_paratransit_itineraries only.")
-      return router_paratransit_itineraries
-    end
-  
-    unless allowed_api == "all"
-      Rails.logger.info("Filtering paratransit services by allowed booking API: #{allowed_api}")
-      paratransit_services = paratransit_services.where(booking_api: allowed_api)
-    end
-  
-    # Final filter: only build itineraries for services matching OTP service names
-    eligible_services = paratransit_services.select do |svc|
-      if otp_service_names.include?(svc.name)
-        Rails.logger.info("Eligible service: #{svc.name} matches OTP service names.")
-        true
-      else
-        Rails.logger.info("Service skipped: #{svc.name} does not match OTP service names.")
-        false
-      end
-    end
-  
-    # Build itineraries for eligible services
-    service_itineraries = eligible_services.map do |svc|
-      Rails.logger.info("Building itinerary for service: #{svc.name} (ID: #{svc.id})")
-  
-      # Find or initialize itinerary
+      # Initialize or find the itinerary
       itinerary = Itinerary.left_joins(:booking)
                             .where(bookings: { id: nil })
                             .find_or_initialize_by(
-                              service_id: svc.id,
+                              service_id: itin.service_id,
                               trip_type: :paratransit,
                               trip_id: @trip.id
                             )
-      Rails.logger.info("Initialized itinerary for service #{svc.name}: #{itinerary.inspect}")
   
-      # Assign attributes
+      # Assign attributes from service and OTP response
       itinerary.assign_attributes({
         assistant: @options[:assistant],
         companions: @options[:companions],
-        cost: svc.fare_for(@trip, router: @router, companions: @options[:companions], assistant: @options[:assistant]),
-        transit_time: @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
+        cost: itin.service.fare_for(@trip, router: @router, companions: @options[:companions], assistant: @options[:assistant]),
+        transit_time: itin.transit_time || @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
       })
   
-      Rails.logger.info("Updated itinerary for service #{svc.name}: #{itinerary.attributes.inspect}")
+      Rails.logger.info("Itinerary built: #{itinerary.inspect}")
       itinerary
     end
   
-    # Combine router itineraries with service itineraries, ensuring no duplicates
-    final_itineraries = (router_paratransit_itineraries + service_itineraries).uniq(&:service_id)
-    Rails.logger.info("Final combined itineraries count: #{final_itineraries.count}")
-  
-    final_itineraries
+    Rails.logger.info("Final built itineraries count: #{itineraries.count}")
+    itineraries.compact
   end
   
   
-  
-  
-
   # Builds taxi itineraries for each service, populates transit_time based on OTP response
   def build_taxi_itineraries
     return [] unless @available_services[:taxi] # Return an empty array if no taxi services are available
