@@ -1118,25 +1118,34 @@ class EcolaneAmbassador < BookingAmbassador
     best_option = nil
     best_index = nil
     # Now Narrow it down based on sponsor
-
     Rails.logger.debug "Potential Options: #{potential_options.inspect}"
     Rails.logger.debug "Preferred Sponsors: #{@preferred_sponsors.inspect}"
     potential_options.each do |option|
-      if best_index == nil and option["sponsor"].in? @preferred_sponsors
+      Rails.logger.debug "Checking option sponsor: #{option['sponsor']}"
+
+      # Check for preferred sponsors first
+      if best_index.nil? && option["sponsor"].in?(@preferred_sponsors)
         best_index = @preferred_sponsors.index(option["sponsor"])
-        best_option = option 
-      elsif option["sponsor"].in? @preferred_sponsors and @preferred_sponsors.index(option["sponsor"]) < best_index
+        best_option = option
+      elsif option["sponsor"].in?(@preferred_sponsors) && @preferred_sponsors.index(option["sponsor"]) < best_index
         best_index = @preferred_sponsors.index(option["sponsor"])
         best_option = option
       end
     end
 
-    Rails.logger.debug "Potential options after looping: #{potential_options.inspect}"
-    Rails.logger.debug "Best Option: #{best_option.inspect}"
-    if potential_options.blank?
-      {}
-    else
+    # Fallback to any valid option if no preferred sponsor matches
+    if best_option.nil?
+      Rails.logger.warn "No preferred sponsor match found. Falling back to first valid option."
+      best_option = potential_options.first
+    end
+
+    Rails.logger.debug "Final Best Option: #{best_option.inspect}"
+
+    # Return the best option or fallback
+    if best_option
       {funding_source: best_option["funding_source"], purpose: @purpose, sponsor: best_option["sponsor"]}
+    else
+      {}
     end
 
   end
