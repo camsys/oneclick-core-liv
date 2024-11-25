@@ -1120,6 +1120,7 @@ class EcolaneAmbassador < BookingAmbassador
     # Now Narrow it down based on sponsor
 
     Rails.logger.debug "Potential Options: #{potential_options.inspect}"
+    Rails.logger.debug "Preferred Sponsors: #{@preferred_sponsors.inspect}"
     potential_options.each do |option|
       if best_index == nil and option["sponsor"].in? @preferred_sponsors
         best_index = @preferred_sponsors.index(option["sponsor"])
