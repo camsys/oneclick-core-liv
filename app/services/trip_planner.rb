@@ -275,6 +275,7 @@ class TripPlanner
   def build_paratransit_itineraries
     Rails.logger.info("Starting build_paratransit_itineraries...")
   
+    # Return early if no paratransit services are available
     unless @available_services[:paratransit].present?
       Rails.logger.info("No available paratransit services. Returning an empty array.")
       return []
@@ -286,37 +287,29 @@ class TripPlanner
     router_paratransit_itineraries = []
   
     if Config.open_trip_planner_version == 'v2'
-      Rails.logger.info("Config version is v2, fetching paratransit itineraries from OTP...")
   
+      # Build OTP itineraries and filter those with valid service IDs
       otp_itineraries = build_fixed_itineraries(:paratransit).select { |itin| itin.service_id.present? }
       Rails.logger.info("OTP itineraries with valid service IDs count: #{otp_itineraries.count}")
-      Rails.logger.info("OTP itineraries service names: #{otp_itineraries.map { |itin| itin.legs.first['route']['agency']['name'] rescue nil }.compact.join(', ')}")
   
-      # Filter OTP itineraries by matching available service names
+      # Extract unique service names from OTP itineraries
       otp_service_names = otp_itineraries.map { |itin| itin.legs.first['route']['agency']['name'] rescue nil }.compact.uniq
-      Rails.logger.info("Matched OTP service names: #{otp_service_names.join(', ')}")
+      Rails.logger.info("OTP itineraries service names: #{otp_service_names.join(', ')}")
   
-      router_paratransit_itineraries += otp_itineraries.map do |itin|
-        matching_service_name = itin.legs.any? do |leg|
+      # Filter OTP itineraries based on service name match
+      router_paratransit_itineraries += otp_itineraries.select do |itin|
+        itin.legs.any? do |leg|
           leg['route'] && leg['route']['agency'] && otp_service_names.include?(leg['route']['agency']['name'])
         end
+      end
   
-        unless matching_service_name
-          Rails.logger.info("Skipping itinerary: No matching service name found for #{itin.service_id}")
-          next nil
-        end
-  
-        itin.trip_type = 'paratransit'
-        Rails.logger.info("Processed OTP itinerary for service: #{itin.service_id}")
-        itin
-      end.compact
-  
-      Rails.logger.info("Router paratransit itineraries count after processing: #{router_paratransit_itineraries.count}")
+      Rails.logger.info("Filtered router paratransit itineraries count: #{router_paratransit_itineraries.count}")
     end
   
-    Rails.logger.info("Filtering paratransit services with GTFS agency IDs missing or nil...")
+    # Retrieve paratransit services explicitly permitted
     paratransit_services = @available_services[:paratransit].where(gtfs_agency_id: ["", nil])
   
+    # Check booking API configurations
     allowed_api = Config.booking_api
     if allowed_api == "none"
       Rails.logger.info("Booking API config set to 'none'. Returning router_paratransit_itineraries only.")
@@ -328,23 +321,22 @@ class TripPlanner
       paratransit_services = paratransit_services.where(booking_api: allowed_api)
     end
   
-    Rails.logger.info("Final paratransit services count after API filtering: #{paratransit_services.count}")
-    Rails.logger.info("Final paratransit service names: #{paratransit_services.map(&:name).join(', ')}")
-  
-    # Filter paratransit services to match OTP service names
-    paratransit_services = paratransit_services.select do |svc|
+    # Final filter: only build itineraries for services matching OTP service names
+    eligible_services = paratransit_services.select do |svc|
       if otp_service_names.include?(svc.name)
-        Rails.logger.info("Service matches OTP service name: #{svc.name}")
+        Rails.logger.info("Eligible service: #{svc.name} matches OTP service names.")
         true
       else
-        Rails.logger.info("Service skipped (no match in OTP names): #{svc.name}")
+        Rails.logger.info("Service skipped: #{svc.name} does not match OTP service names.")
         false
       end
     end
   
-    itineraries = paratransit_services.map do |svc|
-      Rails.logger.info("Processing service: #{svc.name} (ID: #{svc.id})")
+    # Build itineraries for eligible services
+    service_itineraries = eligible_services.map do |svc|
+      Rails.logger.info("Building itinerary for service: #{svc.name} (ID: #{svc.id})")
   
+      # Find or initialize itinerary
       itinerary = Itinerary.left_joins(:booking)
                             .where(bookings: { id: nil })
                             .find_or_initialize_by(
@@ -352,8 +344,9 @@ class TripPlanner
                               trip_type: :paratransit,
                               trip_id: @trip.id
                             )
-      Rails.logger.info("Itinerary found or initialized for service #{svc.name}: #{itinerary.inspect}")
+      Rails.logger.info("Initialized itinerary for service #{svc.name}: #{itinerary.inspect}")
   
+      # Assign attributes
       itinerary.assign_attributes({
         assistant: @options[:assistant],
         companions: @options[:companions],
@@ -361,15 +354,17 @@ class TripPlanner
         transit_time: @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
       })
   
-      Rails.logger.info("Itinerary attributes updated for service #{svc.name}: #{itinerary.attributes.inspect}")
+      Rails.logger.info("Updated itinerary for service #{svc.name}: #{itinerary.attributes.inspect}")
       itinerary
-    end.compact
+    end
   
-    combined_itineraries = (router_paratransit_itineraries + itineraries).uniq(&:service_id)
-    Rails.logger.info("Final combined itineraries count: #{combined_itineraries.count}")
+    # Combine router itineraries with service itineraries, ensuring no duplicates
+    final_itineraries = (router_paratransit_itineraries + service_itineraries).uniq(&:service_id)
+    Rails.logger.info("Final combined itineraries count: #{final_itineraries.count}")
   
-    combined_itineraries
+    final_itineraries
   end
+  
   
   
   
