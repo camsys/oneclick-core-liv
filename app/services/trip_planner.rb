@@ -275,52 +275,39 @@ class TripPlanner
   def build_paratransit_itineraries
     Rails.logger.info("Starting build_paratransit_itineraries...")
   
-    # Return early if no paratransit services are available
-    unless @available_services[:paratransit].present?
-      Rails.logger.info("No available paratransit services. Returning an empty array.")
-      return []
-    end
+    return [] unless @available_services[:paratransit].present? # Return an empty array if no paratransit services are available
   
-    # Fetch itineraries directly from OTP
-    otp_itineraries = build_fixed_itineraries(:paratransit)
-    Rails.logger.info("OTP itineraries count: #{otp_itineraries.count}")
+    # Collect services that passed the accommodations check
+    paratransit_services = @available_services[:paratransit]
   
-    itineraries = otp_itineraries.map do |itin|
-      Rails.logger.info("Processing itinerary for service ID: #{itin.service_id}")
+    # Build itineraries for the services
+    itineraries = paratransit_services.map do |svc|
+      Rails.logger.info("Processing service ID: #{svc&.id}")
   
-      # Find associated service, including services without GTFS agency
-      associated_service = itin.service_id ? Service.find_by(id: itin.service_id) : nil
-      associated_service ||= Service.where('gtfs_agency_id IS NULL AND id = ?', itin.service_id).first
-  
-      if associated_service.nil?
-        Rails.logger.warn("No associated service found for itinerary: #{itin.inspect}. Skipping.")
-        next
-      end
-  
-      # Initialize or find the itinerary
+      # Find or initialize an itinerary for the service
       itinerary = Itinerary.left_joins(:booking)
                             .where(bookings: { id: nil })
                             .find_or_initialize_by(
-                              service_id: associated_service.id,
+                              service_id: svc.id,
                               trip_type: :paratransit,
                               trip_id: @trip.id
                             )
   
-      # Assign attributes from service and OTP response
+      # Assign attributes for the itinerary
       itinerary.assign_attributes({
         assistant: @options[:assistant],
         companions: @options[:companions],
-        cost: associated_service.fare_for(@trip, router: @router, companions: @options[:companions], assistant: @options[:assistant]),
-        transit_time: itin.transit_time || @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
+        cost: svc.fare_for(@trip, router: @router, companions: @options[:companions], assistant: @options[:assistant]),
+        transit_time: @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
       })
   
-      Rails.logger.info("Itinerary built: #{itinerary.inspect}")
+      Rails.logger.info("Built itinerary: #{itinerary.inspect}")
       itinerary
     end
   
     Rails.logger.info("Final built itineraries count: #{itineraries.compact.count}")
     itineraries.compact
-  end  
+  end
   
   
   # Builds taxi itineraries for each service, populates transit_time based on OTP response
