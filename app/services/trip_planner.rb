@@ -275,14 +275,43 @@ class TripPlanner
   def build_paratransit_itineraries
     Rails.logger.info("Starting build_paratransit_itineraries...")
   
-    return [] unless @available_services[:paratransit].present? # Return an empty array if no paratransit services are available
+    return [] unless @available_services[:paratransit].present?
   
-    # Collect services that passed the accommodations check
-    paratransit_services = @available_services[:paratransit]
+    # OTP-based itineraries
+    otp_itineraries = build_fixed_itineraries(:paratransit).select { |itin| itin.service_id.present? }
+    Rails.logger.info("OTP itineraries with valid service IDs count: #{otp_itineraries.count}")
   
-    # Build itineraries for the services
-    itineraries = paratransit_services.map do |svc|
-      Rails.logger.info("Processing service ID: #{svc&.id}")
+    # Build itineraries from OTP itineraries
+    router_itineraries = otp_itineraries.map do |itin|
+      Rails.logger.info("Processing OTP itinerary for service ID: #{itin.service_id}")
+  
+      # Find or initialize an itinerary for the service
+      itinerary = Itinerary.left_joins(:booking)
+                            .where(bookings: { id: nil })
+                            .find_or_initialize_by(
+                              service_id: itin.service_id,
+                              trip_type: :paratransit,
+                              trip_id: @trip.id
+                            )
+  
+      # Assign attributes from service and OTP response
+      itinerary.assign_attributes({
+        assistant: @options[:assistant],
+        companions: @options[:companions],
+        cost: itin.service.fare_for(@trip, router: @router, companions: @options[:companions], assistant: @options[:assistant]),
+        transit_time: itin.transit_time || @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
+      })
+  
+      Rails.logger.info("Built OTP itinerary: #{itinerary.inspect}")
+      itinerary
+    end
+  
+    # Services that passed accommodations but do not have a gtfs_agency_id
+    non_gtfs_services = @available_services[:paratransit].where(gtfs_agency_id: [nil, ""])
+    Rails.logger.info("Non-GTFS paratransit services count: #{non_gtfs_services.count}")
+  
+    non_gtfs_itineraries = non_gtfs_services.map do |svc|
+      Rails.logger.info("Processing non-GTFS service ID: #{svc.id}")
   
       # Find or initialize an itinerary for the service
       itinerary = Itinerary.left_joins(:booking)
@@ -301,13 +330,15 @@ class TripPlanner
         transit_time: @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
       })
   
-      Rails.logger.info("Built itinerary: #{itinerary.inspect}")
+      Rails.logger.info("Built non-GTFS itinerary: #{itinerary.inspect}")
       itinerary
     end
   
-    Rails.logger.info("Final built itineraries count: #{itineraries.compact.count}")
-    itineraries.compact
-  end
+    # Combine and return both sets of itineraries
+    all_itineraries = (router_itineraries + non_gtfs_itineraries).compact
+    Rails.logger.info("Final built itineraries count: #{all_itineraries.count}")
+    all_itineraries
+  end  
   
   
   # Builds taxi itineraries for each service, populates transit_time based on OTP response
