@@ -281,42 +281,33 @@ class OTPAmbassador
   
 
   def get_associated_service_for(leg)
-
-
     leg ||= {}
   
-    # Extract GTFS agency ID and name from the route's agency field
+    # Extract GTFS agency ID and name
     gtfs_agency_id = leg.dig('route', 'agency', 'gtfsId')
     gtfs_agency_name = leg.dig('route', 'agency', 'name')
   
-    # Log extracted values
     Rails.logger.info "GTFS Agency ID: #{gtfs_agency_id}, Name: #{gtfs_agency_name}"
   
     # Attempt to find service by GTFS ID
-    if gtfs_agency_id
-      svc = Service.find_by(gtfs_agency_id: gtfs_agency_id)
-      Rails.logger.info "Service found by GTFS ID: #{svc.inspect}" if svc
-    end
-
-    Rails.logger.info "Service being checked: #{svc&.id}"
+    svc = Service.find_by(gtfs_agency_id: gtfs_agency_id) if gtfs_agency_id
   
-    # Fallback to find by GTFS Agency Name
+    # Fallback to find by GTFS Name or NULL GTFS Agency
     if svc.nil? && gtfs_agency_name
       svc = Service.where('LOWER(name) = ?', gtfs_agency_name.downcase).first
-      Rails.logger.info "Service found by normalized GTFS Name: #{svc.inspect}" if svc
+    elsif svc.nil?
+      svc = Service.where(gtfs_agency_id: nil).first
     end
   
-    # Ensure service is within permitted services and skip if not
+    # Ensure service is permitted
     if svc && @services.any? { |s| s.id == svc.id }
       Rails.logger.info "Permitted service: #{svc.inspect}"
-      return svc
+      svc
     else
       Rails.logger.warn "Service #{svc.inspect} not permitted. Skipping."
-      return nil
+      nil
     end
   end
-  
-  
 
   # OTP Lists Car and Walk as having 0 transit time
   def get_transit_time(otp_itin, trip_type)
