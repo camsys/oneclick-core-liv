@@ -137,17 +137,17 @@ class EcolaneAmbassador < BookingAmbassador
   
     ecolane_trips.each do |order|
       status = order[:status]
-      departure = Time.zone.parse(order[:departure]) rescue nil
-  
-      # Only process trips with a valid future departure and non-canceled status
-      if departure && departure > Time.current && status != "canceled"
-        Rails.logger.info "Processing Ecolane trip ID: #{order[:id]} with status: #{status}"
-        occ_trip_from_ecolane_trip(order)
-      else
-        Rails.logger.info "Skipping trip ID: #{order[:id]} (status: #{status}, departure: #{departure})"
+      
+      # Skip trips with 'completed' status
+      if status == "completed"
+        Rails.logger.info "Skipping trip ID: #{order[:id]} with status: #{status}"
+        next
       end
+  
+      Rails.logger.info "Processing Ecolane trip ID: #{order[:id]} with status: #{status}"
+      occ_trip_from_ecolane_trip(order)
     end
-
+  
   end  
   
 
