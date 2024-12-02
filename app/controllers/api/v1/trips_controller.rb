@@ -38,25 +38,13 @@ module Api
       # GET trips/future_trips
       # Returns future trips associated with logged in user, limit by max_results param
       def future_trips
-        # Only return trips that have been booked properly
+        # Only return trips that have been booked properly and are not linked to another trip
         future_trips_with_booking = @traveler.future_trips(params[:max_results] || 25).select do |trip|
-          trip.booking.present? && trip.booking.confirmation.present?
-        end
-
-        Rails.logger.info "Future Trips: #{future_trips_with_booking.inspect}"
-
-      
-        # Remove additional itineraries for each trip, keeping only the first ("0")
-        filtered_trips = future_trips_with_booking.map do |trip|
-          trip_hash = trip.as_json # Convert the trip object to a hash
-          trip_hash.each_key do |key|
-            trip_hash.delete(key) unless key == "0" # Keep only "0" itinerary
-          end
-          trip_hash
+          trip.booking.present? && trip.booking.confirmation.present? && trip.previous_trip_id.nil?
         end
       
         # Generate the future trips hash
-        future_trips_hash = filtered_trips.map { |t| filter_trip_name(t) }
+        future_trips_hash = future_trips_with_booking.map { |t| filter_trip_name(t) }
       
         render status: 200, json: { trips: future_trips_hash }
       end
