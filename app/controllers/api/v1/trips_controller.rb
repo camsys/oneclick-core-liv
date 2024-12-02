@@ -45,40 +45,18 @@ module Api
       
         Rails.logger.info "Future Trips: #{future_trips_with_booking.inspect}"
       
-        # Ensure main trips and return trips are treated distinctly
-        filtered_trips = future_trips_with_booking.map do |trip|
-          if trip.previous_trip_id.nil?
-            # Main trip: Check if it has a return trip
-            if return_trip_exists?(trip, future_trips_with_booking)
-              Rails.logger.info "Main trip #{trip.id} has a return trip. Keeping only the main itinerary."
-              trip
-            else
-              Rails.logger.info "Main trip #{trip.id} has no return trip. Keeping as is."
-              trip
-            end
-          else
-            # Return trip: Always keep
-            Rails.logger.info "Return trip #{trip.id} is retained."
-            trip
-          end
+        # Separate main trips and return trips as independent entities
+        independent_trips = future_trips_with_booking.map do |trip|
+          trip.previous_trip_id = nil
+          trip
         end
       
-        Rails.logger.info "Filtered Trips: #{filtered_trips.inspect}"
+        Rails.logger.info "Independent Trips: #{independent_trips.inspect}"
       
-        # Pass the filtered trips to filter_trip_name
-        future_trips_hash = filtered_trips.map { |t| filter_trip_name(t) }
+        # Pass the independent trips to filter_trip_name
+        future_trips_hash = independent_trips.map { |t| filter_trip_name(t) }
       
         render status: 200, json: { trips: future_trips_hash }
-      end
-      
-      # Check if a return trip exists for a main trip
-      def return_trip_exists?(main_trip, all_trips)
-        all_trips.any? { |trip| trip.previous_trip_id == main_trip.id }
-      end
-      
-      # Checks if a duplicate itinerary exists for the trip in the future trips list
-      def duplicate_itinerary_exists?(trip, all_trips)
-        all_trips.any? { |t| t.previous_trip_id == trip.id }
       end
       
 
