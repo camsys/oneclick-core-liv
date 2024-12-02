@@ -136,11 +136,19 @@ class EcolaneAmbassador < BookingAmbassador
     ecolane_trips = arrayify(fetch_customer_orders(options).try(:with_indifferent_access).try(:[], :orders).try(:[], :order))
   
     ecolane_trips.each do |order|
-      Rails.logger.info "Processing Ecolane trip ID: #{order[:id]} with status: #{order[:status]}"
-      occ_trip_from_ecolane_trip(order)
-    end
+      status = order[:status]
+      departure = Time.zone.parse(order[:departure]) rescue nil
   
-  end
+      # Only process trips with a valid future departure and non-canceled status
+      if departure && departure > Time.current && status != "canceled"
+        Rails.logger.info "Processing Ecolane trip ID: #{order[:id]} with status: #{status}"
+        occ_trip_from_ecolane_trip(order)
+      else
+        Rails.logger.info "Skipping trip ID: #{order[:id]} (status: #{status}, departure: #{departure})"
+      end
+    end
+
+  end  
   
 
     # Books Trip (funding_source and sponsor must be specified)
