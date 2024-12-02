@@ -154,6 +154,9 @@ class User < ApplicationRecord
     # Sync up with any booking services
     sync
     future_trips = trips.selected.future.limit(count)
+
+    #filter out any trips that are in the past
+    future_trips = future_trips.select { |trip| trip.trip_time > Time.now }
     future_trips
   end
 
