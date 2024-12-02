@@ -38,31 +38,32 @@ module Api
       # GET trips/future_trips
       # Returns future trips associated with logged in user, limit by max_results param
       def future_trips
-        # Fetch future trips for the traveler with proper bookings
+        # Fetch properly booked future trips
         future_trips_with_booking = @traveler.future_trips(params[:max_results] || 25).select do |trip|
           trip.booking.present? && trip.booking.confirmation.present?
         end
+
+        Rails.logger.info "Future Trips: #{future_trips_with_booking.inspect}"
       
-        # Process trips to remove duplicate legs
+        # Process the trips to remove extra itineraries from parent trips
         filtered_trips = future_trips_with_booking.map do |trip|
-          # Convert the trip into a structured hash (assuming `trip` has necessary methods)
-          trip_hash = format_trip(trip)
+          trip_hash = trip.as_json # Convert trip to a hash
       
-          # Remove duplicate itineraries (ensure only "0" itinerary for parent trips)
-          if trip.previous_trip_id.present?
-            # If it's a return leg, keep only its own data
-            { "0" => trip_hash["0"] }
-          else
-            # If it's a main trip, exclude itineraries that appear as separate trips
-            trip_hash.reject { |key, _| key.to_s != "0" }
+          # Keep only the first itinerary ("0") for parent trips
+          if trip_hash["0"] && trip_hash["1"]
+            trip_hash.delete("1")
           end
+      
+          trip_hash
         end
       
-        # Generate future trips hash for response
+        Rails.logger.info "Filtered Trips: #{filtered_trips.inspect}"
+        # Generate future trips hash
         future_trips_hash = filtered_trips.map { |t| filter_trip_name(t) }
       
         render status: 200, json: { trips: future_trips_hash }
       end
+      
 
       # POST trips/, POST itineraries/plan
       def create
