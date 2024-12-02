@@ -43,21 +43,18 @@ module Api
           trip.booking.present? && trip.booking.confirmation.present?
         end
       
-        # Create a mapping of trip ids to avoid duplication
-        standalone_trip_ids = future_trips_with_booking.map(&:id)
-      
         # Process trips to remove duplicate legs
         filtered_trips = future_trips_with_booking.map do |trip|
-          trip_hash = trip.as_json # Convert trip to a hash-like structure
-          itineraries = trip_hash.select { |key, _| key.match?(/^\d+$/) } # Extract "0", "1", etc.
-          
-          # If this trip has a `previous_trip_id` (return leg), leave it as-is
+          # Convert the trip into a structured hash (assuming `trip` has necessary methods)
+          trip_hash = format_trip(trip)
+      
+          # Remove duplicate itineraries (ensure only "0" itinerary for parent trips)
           if trip.previous_trip_id.present?
-            { "0" => itineraries["0"] }
+            # If it's a return leg, keep only its own data
+            { "0" => trip_hash["0"] }
           else
-            # For main trips, remove return legs that exist as standalone trips
-            itineraries.reject! { |key, itinerary| key != "0" && standalone_trip_ids.include?(itinerary[:trip_id]) }
-            itineraries
+            # If it's a main trip, exclude itineraries that appear as separate trips
+            trip_hash.reject { |key, _| key.to_s != "0" }
           end
         end
       
