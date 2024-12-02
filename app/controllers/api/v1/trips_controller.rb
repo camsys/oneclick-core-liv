@@ -47,21 +47,27 @@ module Api
       
         # Process the trips to remove extra itineraries from parent trips
         filtered_trips = future_trips_with_booking.map do |trip|
-          trip_hash = trip.as_json # Convert trip to a hash
-      
-          # Keep only the first itinerary ("0") for parent trips
-          if trip_hash["0"] && trip_hash["1"]
-            trip_hash.delete("1")
+          if trip.previous_trip_id.present?
+            # If it's a return trip, let it remain as is
+            trip
+          else
+            # If it's a main trip, ensure only the first itinerary is included
+            trip.selected_itinerary_id = nil if duplicate_itinerary_exists?(trip, future_trips_with_booking)
+            trip
           end
-      
-          trip_hash
         end
-      
+
         Rails.logger.info "Filtered Trips: #{filtered_trips.inspect}"
-        # Generate future trips hash
+      
+        # Pass the filtered trips to filter_trip_name
         future_trips_hash = filtered_trips.map { |t| filter_trip_name(t) }
       
         render status: 200, json: { trips: future_trips_hash }
+      end
+      
+      # Checks if a duplicate itinerary exists for the trip in the future trips list
+      def duplicate_itinerary_exists?(trip, all_trips)
+        all_trips.any? { |t| t.previous_trip_id == trip.id }
       end
       
 
