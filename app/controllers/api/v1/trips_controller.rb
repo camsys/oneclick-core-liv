@@ -42,6 +42,9 @@ module Api
         future_trips_with_booking = @traveler.future_trips(params[:max_results] || 25).select do |trip|
           trip.booking.present? && trip.booking.confirmation.present?
         end
+
+        Rails.logger.info "Future Trips: #{future_trips_with_booking.inspect}"
+
       
         # Remove additional itineraries for each trip, keeping only the first ("0")
         filtered_trips = future_trips_with_booking.map do |trip|
