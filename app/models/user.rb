@@ -155,8 +155,8 @@ class User < ApplicationRecord
     sync
     future_trips = trips.selected.future.limit(count)
 
-    #filter out any trips that are in the past
-    future_trips = future_trips.select { |trip| trip.trip_time > Time.now }
+    #filter out any trips that are in the past more than 45 minutes
+    future_trips = future_trips.select { |trip| trip.trip_time > Time.now + 45.minutes }
     future_trips
   end
 
