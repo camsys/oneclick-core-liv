@@ -98,7 +98,7 @@ module OTP
     end  
 
     def build_graphql_body(from, to, trip_datetime, transport_modes, options = {})
-      num_itineraries = options[:num_itineraries] || Config.otp_itinerary_quantity
+      num_itineraries = Config.otp_itinerary_quantity.to_i
       walk_speed = options[:walk_speed] || Config.walk_speed
       max_walk_distance = options[:max_walk_distance] || Config.max_walk_distance
       bike_reluctance = options[:bike_reluctance] || Config.bike_reluctance
