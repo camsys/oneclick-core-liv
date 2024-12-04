@@ -97,20 +97,17 @@ module OTP
       end
     end  
 
-    def build_graphql_body(from, to, trip_datetime, transport_modes)
-      # Map the trip types to their specific config quantities
-      mode_quantities = {
-        "TRANSIT" => Config.otp_transit_quantity.to_i,
-        "FLEX" => Config.otp_paratransit_quantity.to_i,
-        "WALK" => Config.otp_itinerary_quantity.to_i
-      }
+    def build_graphql_body(from, to, trip_datetime, transport_modes, options = {})
+      # Set default options
+      walk_speed = options[:walk_speed] || Config.walk_speed || 1.34 # m/s default
+      max_walk_distance = options[:max_walk_distance] || Config.max_walk_distance || 8000 # meters default
+      walk_reluctance = options[:walk_reluctance] || Config.walk_reluctance || 2.0
+      walk_on_street_reluctance = options[:walk_on_street_reluctance] || Config.walk_on_street_reluctance || 2.0
+      walk_safety_factor = options[:walk_safety_factor] || Config.walk_safety_factor || 1.0
+      wait_reluctance = options[:wait_reluctance] || Config.wait_reluctance || 0.5
+      num_itineraries = options[:num_itineraries] || Config.otp_itinerary_quantity || 10
     
-      # Fallback for general quantity
-      default_quantity = Config.otp_itinerary_quantity.to_i
-      walk_speed = Config.walk_speed.to_f || 1.34 # Default walk speed in m/s (~3 mph)
-      max_walk_distance = Config.max_walk_distance.to_f || 1609.34 # Default 1 mile in meters
-    
-      Rails.logger.info("Transport Modes: #{transport_modes}")
+      # Format transport modes
       formatted_modes = transport_modes.map do |mode|
         if mode[:mode] == "FLEX"
           "{ mode: #{mode[:mode]}, qualifier: #{mode[:qualifier]} }"
@@ -119,22 +116,23 @@ module OTP
         end
       end.join(", ")
     
-      mode_names = transport_modes.map { |m| m[:mode] }
-      num_itineraries = mode_names.map { |name| mode_quantities[name] || default_quantity }.max
-    
-      Rails.logger.info("Formatted Modes: #{formatted_modes}")
+      # Build GraphQL query
       {
         query: <<-GRAPHQL,
-          query($fromLat: Float!, $fromLon: Float!, $toLat: Float!, $toLon: Float!, $date: String!, $time: String!, $numItineraries: Int!, $walkSpeed: Float!, $maxWalkDistance: Float!) {
+          query($fromLat: Float!, $fromLon: Float!, $toLat: Float!, $toLon: Float!, $date: String!, $time: String!) {
             plan(
               from: { lat: $fromLat, lon: $fromLon }
               to: { lat: $toLat, lon: $toLon }
               date: $date
               time: $time
               transportModes: [#{formatted_modes}]
-              numItineraries: $numItineraries
-              walkSpeed: $walkSpeed
-              maxWalkDistance: $maxWalkDistance
+              numItineraries: #{num_itineraries}
+              walkSpeed: #{walk_speed}
+              maxWalkDistance: #{max_walk_distance}
+              walkReluctance: #{walk_reluctance}
+              walkOnStreetReluctance: #{walk_on_street_reluctance}
+              walkSafetyFactor: #{walk_safety_factor}
+              waitReluctance: #{wait_reluctance}
             ) {
               itineraries {
                 startTime
@@ -210,13 +208,10 @@ module OTP
           toLat: to[0].to_f,
           toLon: to[1].to_f,
           date: trip_datetime.strftime("%Y-%m-%d"),
-          time: trip_datetime.strftime("%H:%M"),
-          numItineraries: num_itineraries,
-          walkSpeed: walk_speed,
-          maxWalkDistance: max_walk_distance
+          time: trip_datetime.strftime("%H:%M")
+          }
         }
-      }
-    end
+      end
 
 
     ###
