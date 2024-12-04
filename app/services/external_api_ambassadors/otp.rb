@@ -121,14 +121,14 @@ module OTP
         else
           Config.otp_itinerary_quantity
         end
-      end.first
+      end.first || Config.otp_itinerary_quantity
     
       # Format transport modes for GraphQL
       formatted_modes = transport_modes.map do |mode|
         if mode[:mode] == "FLEX"
           "{ mode: \"#{mode[:mode]}\", qualifier: \"#{mode[:qualifier]}\" }"
         else
-          "{ mode: \"#{mode[:mode]}\" }"
+          "{ mode: #{mode[:mode]} }"
         end
       end.join(", ")
     
