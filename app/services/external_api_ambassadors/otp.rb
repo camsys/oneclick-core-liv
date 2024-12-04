@@ -104,6 +104,8 @@ module OTP
       max_bicycle_distance = options[:max_bicycle_distance] || 5 * 1609.34 # in meters
       walk_reluctance = options[:walk_reluctance] || Config.walk_reluctance
       bike_reluctance = options[:bike_reluctance] || Config.bike_reluctance
+      wait_reluctance = options[:wait_reluctance]
+      wheelchair = options[:wheelchair] || false
     
       # Determine number of itineraries for the transport mode
       num_itineraries = transport_modes.map do |mode|
@@ -140,6 +142,7 @@ module OTP
               date: $date
               time: $time
               transportModes: [#{formatted_modes}]
+              numItineraries: #{num_itineraries}
               walkSpeed: #{walk_speed}
               maxWalkDistance: #{max_walk_distance}
               walkReluctance: #{walk_reluctance}
