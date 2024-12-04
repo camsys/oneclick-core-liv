@@ -98,7 +98,15 @@ module OTP
     end  
 
     def build_graphql_body(from, to, trip_datetime, transport_modes)
-      num_itineraries = Config.otp_itinerary_quantity.to_i
+      # Map the trip types to their specific config quantities
+      mode_quantities = {
+        "TRANSIT" => Config.otp_transit_quantity.to_i,
+        "FLEX" => Config.otp_paratransit_quantity.to_i,
+        "WALK" => Config.otp_itinerary_quantity.to_i
+      }
+    
+      # Fallback for general quantity
+      default_quantity = Config.otp_itinerary_quantity.to_i
       walk_speed = Config.walk_speed.to_f || 1.34 # Default walk speed in m/s (~3 mph)
       max_walk_distance = Config.max_walk_distance.to_f || 1609.34 # Default 1 mile in meters
     
@@ -110,6 +118,9 @@ module OTP
           "{ mode: #{mode[:mode]} }"
         end
       end.join(", ")
+    
+      mode_names = transport_modes.map { |m| m[:mode] }
+      num_itineraries = mode_names.map { |name| mode_quantities[name] || default_quantity }.max
     
       Rails.logger.info("Formatted Modes: #{formatted_modes}")
       {
@@ -205,9 +216,7 @@ module OTP
           maxWalkDistance: max_walk_distance
         }
       }
-    end    
-    
-
+    end
 
 
     ###
