@@ -97,12 +97,10 @@ module OTP
       end
     end  
 
-    def build_graphql_body(from, to, trip_datetime, transport_modes, options = {})
+    def build_graphql_body(from, to, trip_datetime, transport_modes)
       num_itineraries = Config.otp_itinerary_quantity.to_i
-      walk_speed = options[:walk_speed] || Config.walk_speed
-      max_walk_distance = options[:max_walk_distance] || Config.max_walk_distance
-      bike_reluctance = options[:bike_reluctance] || Config.bike_reluctance
-      walk_reluctance = options[:walk_reluctance] || Config.walk_reluctance
+      walk_speed = Config.walk_speed.to_f || 1.34 # Default walk speed in m/s (~3 mph)
+      max_walk_distance = Config.max_walk_distance.to_f || 1609.34 # Default 1 mile in meters
     
       Rails.logger.info("Transport Modes: #{transport_modes}")
       formatted_modes = transport_modes.map do |mode|
@@ -112,6 +110,7 @@ module OTP
           "{ mode: #{mode[:mode]} }"
         end
       end.join(", ")
+    
       Rails.logger.info("Formatted Modes: #{formatted_modes}")
       {
         query: <<-GRAPHQL,
@@ -203,10 +202,10 @@ module OTP
           time: trip_datetime.strftime("%H:%M"),
           numItineraries: num_itineraries,
           walkSpeed: walk_speed,
-          maxWalkDistance: max_walk_distance * 1609.34
+          maxWalkDistance: max_walk_distance
         }
       }
-    end
+    end    
     
 
 
