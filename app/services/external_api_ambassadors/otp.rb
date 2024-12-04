@@ -126,7 +126,7 @@ module OTP
       # Format transport modes for GraphQL
       formatted_modes = transport_modes.map do |mode|
         if mode[:mode] == "FLEX"
-          "{ mode: \"#{mode[:mode]}\", qualifier: \"#{mode[:qualifier]}\" }"
+          "{ mode: #{mode[:mode]}, qualifier: \"#{mode[:qualifier]}\" }"
         else
           "{ mode: #{mode[:mode]} }"
         end
