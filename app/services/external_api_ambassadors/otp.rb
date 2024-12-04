@@ -98,16 +98,36 @@ module OTP
     end  
 
     def build_graphql_body(from, to, trip_datetime, transport_modes, options = {})
-      # Set default options
-      walk_speed = options[:walk_speed] || Config.walk_speed || 1.34 # m/s default
-      max_walk_distance = options[:max_walk_distance] || Config.max_walk_distance || 8000 # meters default
-      walk_reluctance = options[:walk_reluctance] || Config.walk_reluctance || 2.0
-      walk_on_street_reluctance = options[:walk_on_street_reluctance] || Config.walk_on_street_reluctance || 2.0
-      walk_safety_factor = options[:walk_safety_factor] || Config.walk_safety_factor || 1.0
-      wait_reluctance = options[:wait_reluctance] || Config.wait_reluctance || 0.5
-      num_itineraries = options[:num_itineraries] || Config.otp_itinerary_quantity || 10
+      arrive_by = options[:arrive_by].nil? ? true : options[:arrive_by]
+      walk_speed = options[:walk_speed] || 3.0 # in m/s
+      max_walk_distance = options[:max_walk_distance] || 2 * 1609.34 # in meters
+      max_bicycle_distance = options[:max_bicycle_distance] || 5 * 1609.34 # in meters
+      walk_reluctance = options[:walk_reluctance] || Config.walk_reluctance
+      bike_reluctance = options[:bike_reluctance] || Config.bike_reluctance
+      wait_reluctance = options[:wait_reluctance]
+      wheelchair = options[:wheelchair] || false
+      optimize = options[:optimize] || 'QUICK'
+      min_transfer_time = options[:min_transfer_time]
+      max_transfer_time = options[:max_transfer_time]
+      banned_routes = options[:banned_routes]
+      preferred_routes = options[:preferred_routes]
     
-      # Format transport modes
+      num_itineraries = transport_modes.map do |mode|
+        case mode[:mode]
+        when "TRANSIT"
+          Config.otp_transit_quantity
+        when "FLEX"
+          Config.otp_paratransit_quantity
+        when "BICYCLE"
+          Config.otp_bike_quantity
+        when "WALK"
+          Config.otp_walk_quantity
+        else
+          Config.otp_itinerary_quantity
+        end
+      end.first      
+    
+      # Format transport modes for GraphQL
       formatted_modes = transport_modes.map do |mode|
         if mode[:mode] == "FLEX"
           "{ mode: #{mode[:mode]}, qualifier: #{mode[:qualifier]} }"
@@ -130,9 +150,9 @@ module OTP
               walkSpeed: #{walk_speed}
               maxWalkDistance: #{max_walk_distance}
               walkReluctance: #{walk_reluctance}
-              walkOnStreetReluctance: #{walk_on_street_reluctance}
-              walkSafetyFactor: #{walk_safety_factor}
+              bikeReluctance: #{bike_reluctance}
               waitReluctance: #{wait_reluctance}
+              wheelchair: #{wheelchair}
             ) {
               itineraries {
                 startTime
@@ -209,9 +229,9 @@ module OTP
           toLon: to[1].to_f,
           date: trip_datetime.strftime("%Y-%m-%d"),
           time: trip_datetime.strftime("%H:%M")
-          }
         }
-      end
+      }
+    end
 
 
     ###
