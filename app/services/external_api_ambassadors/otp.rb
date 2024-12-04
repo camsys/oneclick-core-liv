@@ -106,12 +106,8 @@ module OTP
       bike_reluctance = options[:bike_reluctance] || Config.bike_reluctance
       wait_reluctance = options[:wait_reluctance]
       wheelchair = options[:wheelchair] || false
-      optimize = options[:optimize] || 'QUICK'
-      min_transfer_time = options[:min_transfer_time]
-      max_transfer_time = options[:max_transfer_time]
-      banned_routes = options[:banned_routes]
-      preferred_routes = options[:preferred_routes]
     
+      # Determine number of itineraries for the transport mode
       num_itineraries = transport_modes.map do |mode|
         case mode[:mode]
         when "TRANSIT"
@@ -125,14 +121,14 @@ module OTP
         else
           Config.otp_itinerary_quantity
         end
-      end.first      
+      end.first
     
       # Format transport modes for GraphQL
       formatted_modes = transport_modes.map do |mode|
         if mode[:mode] == "FLEX"
-          "{ mode: #{mode[:mode]}, qualifier: #{mode[:qualifier]} }"
+          "{ mode: \"#{mode[:mode]}\", qualifier: \"#{mode[:qualifier]}\" }"
         else
-          "{ mode: #{mode[:mode]} }"
+          "{ mode: \"#{mode[:mode]}\" }"
         end
       end.join(", ")
     
