@@ -97,8 +97,14 @@ module OTP
       end
     end  
 
-    def build_graphql_body(from, to, trip_datetime, transport_modes)
-      Rails.logger.info("Transpot Modes: #{transport_modes}")
+    def build_graphql_body(from, to, trip_datetime, transport_modes, options = {})
+      num_itineraries = options[:num_itineraries] || Config.otp_itinerary_quantity
+      walk_speed = options[:walk_speed] || Config.walk_speed
+      max_walk_distance = options[:max_walk_distance] || Config.max_walk_distance
+      bike_reluctance = options[:bike_reluctance] || Config.bike_reluctance
+      walk_reluctance = options[:walk_reluctance] || Config.walk_reluctance
+    
+      Rails.logger.info("Transport Modes: #{transport_modes}")
       formatted_modes = transport_modes.map do |mode|
         if mode[:mode] == "FLEX"
           "{ mode: #{mode[:mode]}, qualifier: #{mode[:qualifier]} }"
@@ -109,13 +115,16 @@ module OTP
       Rails.logger.info("Formatted Modes: #{formatted_modes}")
       {
         query: <<-GRAPHQL,
-          query($fromLat: Float!, $fromLon: Float!, $toLat: Float!, $toLon: Float!, $date: String!, $time: String!) {
+          query($fromLat: Float!, $fromLon: Float!, $toLat: Float!, $toLon: Float!, $date: String!, $time: String!, $numItineraries: Int!, $walkSpeed: Float!, $maxWalkDistance: Float!) {
             plan(
               from: { lat: $fromLat, lon: $fromLon }
               to: { lat: $toLat, lon: $toLon }
               date: $date
               time: $time
               transportModes: [#{formatted_modes}]
+              numItineraries: $numItineraries
+              walkSpeed: $walkSpeed
+              maxWalkDistance: $maxWalkDistance
             ) {
               itineraries {
                 startTime
@@ -191,7 +200,10 @@ module OTP
           toLat: to[0].to_f,
           toLon: to[1].to_f,
           date: trip_datetime.strftime("%Y-%m-%d"),
-          time: trip_datetime.strftime("%H:%M")
+          time: trip_datetime.strftime("%H:%M"),
+          numItineraries: num_itineraries,
+          walkSpeed: walk_speed,
+          maxWalkDistance: max_walk_distance * 1609.34
         }
       }
     end
