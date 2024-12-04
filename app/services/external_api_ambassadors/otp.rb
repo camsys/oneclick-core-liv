@@ -142,7 +142,6 @@ module OTP
               date: $date
               time: $time
               transportModes: [#{formatted_modes}]
-              numItineraries: #{num_itineraries}
               walkSpeed: #{walk_speed}
               maxWalkDistance: #{max_walk_distance}
               walkReluctance: #{walk_reluctance}
