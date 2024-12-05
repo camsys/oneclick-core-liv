@@ -139,7 +139,6 @@ module OTP
               maxWalkDistance: #{max_walk_distance}
               walkReluctance: #{walk_reluctance}
               bikeReluctance: #{bike_reluctance}
-              wheelchair: #{wheelchair}
             ) {
               itineraries {
                 startTime
