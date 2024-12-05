@@ -48,12 +48,6 @@ module OTP
       bundler.responses
     end
     
-
-    # Constructs an OTP request url
-    def plan_url(request)
-      build_url(request[:from], request[:to], request[:trip_time], request[:arrive_by], request[:options] || {})
-    end
-
     def plan(from, to, trip_datetime, arrive_by = true, transport_modes = nil, options = {})
       # Default modes based on options or transport_modes
       transport_modes ||= determine_default_modes(options) # Logic to get default modes

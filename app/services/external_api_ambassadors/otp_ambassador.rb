@@ -57,11 +57,6 @@ class OTPAmbassador
     }.compact.uniq
     @otp = OTPService.new(Config.open_trip_planner, otp_version)
 
-    # add http calls to bundler based on trip and modes
-    prepare_http_requests.each do |request|
-      next if @http_request_bundler.requests.key?(request[:label])
-      @http_request_bundler.add(request[:label], request[:url], request[:action])
-    end    
   end
 
   # Packages and returns any errors that came back with a given trip request
@@ -158,7 +153,6 @@ class OTPAmbassador
       # Build the request object
       {
         label: label,
-        url: @otp.plan_url(format_trip_as_otp_request(request_type)),
         action: :get
       }
     end.compact
