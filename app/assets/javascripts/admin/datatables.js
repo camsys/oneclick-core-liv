@@ -3,7 +3,7 @@ $(document).on('turbolinks:load', function () {
     '#purpose-travel-patterns-table',
     '#funding-sources-table',
     '#booking-profiles-table',
-    '#DataTables_Table_0',
+    '#DataTables_Table_0_wrapper',
   ];
 
   tableSelectors.forEach((selector) => {
