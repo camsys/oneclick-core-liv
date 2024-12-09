@@ -26,7 +26,7 @@ class TripPlanner
 
 
     @errors = []
-    @paratransit_drive_time_multiplier = Config.paratransit_drive_time_multiplier
+    @paratransit_drive_time_multiplier = Config.paratransit_drive_time_multiplier.to_f
     @master_service_scope = options[:available_services] || Service.all # Allow pre-filtering of available services
     # This bundler is passed to the ambassadors, so that all API calls can be made asynchronously
     @http_request_bundler = options[:http_request_bundler] || HTTPRequestBundler.new
