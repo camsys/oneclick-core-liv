@@ -295,11 +295,9 @@ class TripPlanner
   
     # OTP-based itineraries
     otp_itineraries = build_fixed_itineraries(:paratransit).select { |itin| itin.service_id.present? }
-    Rails.logger.info("OTP itineraries with valid service IDs count: #{otp_itineraries.count}")
   
     # Build itineraries from OTP itineraries
     router_itineraries = otp_itineraries.map do |itin|
-      Rails.logger.info("Processing OTP itinerary for service ID: #{itin.service_id}")
   
       # Find or initialize an itinerary for the service
       itinerary = Itinerary.left_joins(:booking)
@@ -309,9 +307,7 @@ class TripPlanner
                               trip_type: :paratransit,
                               trip_id: @trip.id
                             )
-      Rails.logger.info("Found or initialized itinerary: #{itinerary.inspect}")
       calculated_duration = @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
-      Rails.logger.info("Calculated transit time for OTP itinerary: #{calculated_duration}")
   
       # Assign attributes from service and OTP response
       itinerary.assign_attributes({
@@ -320,16 +316,12 @@ class TripPlanner
         cost: itin.service.fare_for(@trip, router: @router, companions: @options[:companions], assistant: @options[:assistant]),
         transit_time: calculated_duration
       })
-
-      Rails.logger.info("Transit time: #{itinerary.transit_time}")
   
-      Rails.logger.info("Built OTP itinerary: #{itinerary.inspect}")
       itinerary
     end
   
     # Services that passed accommodations but do not have a gtfs_agency_id
     non_gtfs_services = @available_services[:paratransit].where(gtfs_agency_id: [nil, ""])
-    Rails.logger.info("Non-GTFS paratransit services count: #{non_gtfs_services.count}")
   
     non_gtfs_itineraries = non_gtfs_services.map do |svc|
       Rails.logger.info("Processing non-GTFS service ID: #{svc.id}")
@@ -342,11 +334,9 @@ class TripPlanner
                               trip_type: :paratransit,
                               trip_id: @trip.id
                             )
-      Rails.logger.info("Found or initialized itinerary: #{itinerary.inspect}")
     
       # Calculate transit time
       calculated_duration = @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
-      Rails.logger.info("Calculated transit time for non-GTFS itinerary: #{calculated_duration}")
     
       # Assign attributes for the itinerary
       itinerary.assign_attributes({
@@ -356,7 +346,6 @@ class TripPlanner
         transit_time: calculated_duration
       })
     
-      Rails.logger.info("Built non-GTFS itinerary: #{itinerary.inspect}")
       itinerary
     end    
   
