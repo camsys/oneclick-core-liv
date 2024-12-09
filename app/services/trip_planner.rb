@@ -310,13 +310,15 @@ class TripPlanner
                               trip_id: @trip.id
                             )
       Rails.logger.info("Found or initialized itinerary: #{itinerary.inspect}")
+      calculated_duration = @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
+      Rails.logger.info("Calculated transit time for OTP itinerary: #{calculated_duration}")
   
       # Assign attributes from service and OTP response
       itinerary.assign_attributes({
         assistant: @options[:assistant],
         companions: @options[:companions],
         cost: itin.service.fare_for(@trip, router: @router, companions: @options[:companions], assistant: @options[:assistant]),
-        transit_time: itin.transit_time || @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
+        transit_time: calculated_duration
       })
 
       Rails.logger.info("Transit time: #{itinerary.transit_time}")
