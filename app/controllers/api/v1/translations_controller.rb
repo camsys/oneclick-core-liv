@@ -2,6 +2,8 @@ module Api
   module V1
     class TranslationsController < ApiController
 
+      before_action :disable_cache
+
       def find
 
         locale = Locale.find_by(name:  params[:lang] || params[:locale])
@@ -117,6 +119,14 @@ module Api
 
         dictionary
 
+      end
+
+      private
+
+      def disable_cache
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
       end
 
     end
