@@ -309,6 +309,7 @@ class TripPlanner
                               trip_type: :paratransit,
                               trip_id: @trip.id
                             )
+      Rails.logger.info("Found or initialized itinerary: #{itinerary.inspect}")
   
       # Assign attributes from service and OTP response
       itinerary.assign_attributes({
@@ -317,6 +318,8 @@ class TripPlanner
         cost: itin.service.fare_for(@trip, router: @router, companions: @options[:companions], assistant: @options[:assistant]),
         transit_time: itin.transit_time || @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
       })
+
+      Rails.logger.info("Transit time: #{itinerary.transit_time}")
   
       Rails.logger.info("Built OTP itinerary: #{itinerary.inspect}")
       itinerary
@@ -328,7 +331,7 @@ class TripPlanner
   
     non_gtfs_itineraries = non_gtfs_services.map do |svc|
       Rails.logger.info("Processing non-GTFS service ID: #{svc.id}")
-  
+    
       # Find or initialize an itinerary for the service
       itinerary = Itinerary.left_joins(:booking)
                             .where(bookings: { id: nil })
@@ -337,13 +340,19 @@ class TripPlanner
                               trip_type: :paratransit,
                               trip_id: @trip.id
                             )
-  
+      Rails.logger.info("Found or initialized itinerary: #{itinerary.inspect}")
+    
+      # Calculate transit time, aligning with GTFS logic
+      transit_time = itinerary.transit_time || @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
+
+      Rails.logger.info("Calculated transit time: #{transit_time}")
+    
       # Assign attributes for the itinerary
       itinerary.assign_attributes({
         assistant: @options[:assistant],
         companions: @options[:companions],
         cost: svc.fare_for(@trip, router: @router, companions: @options[:companions], assistant: @options[:assistant]),
-        transit_time: itinerary.transit_time || @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
+        transit_time: transit_time < 86400 ? transit_time : nil # Sanity check for unrealistic durations
       })
   
       Rails.logger.info("Built non-GTFS itinerary: #{itinerary.inspect}")
