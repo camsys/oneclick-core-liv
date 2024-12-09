@@ -343,7 +343,7 @@ class TripPlanner
         assistant: @options[:assistant],
         companions: @options[:companions],
         cost: svc.fare_for(@trip, router: @router, companions: @options[:companions], assistant: @options[:assistant]),
-        transit_time: @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
+        transit_time: itinerary.transit_time || @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
       })
   
       Rails.logger.info("Built non-GTFS itinerary: #{itinerary.inspect}")
