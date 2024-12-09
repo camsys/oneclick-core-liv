@@ -354,7 +354,6 @@ class TripPlanner
         transit_time: calculated_duration
       })
     
-      Rails.logger.info("Final transit time for non-GTFS itinerary: #{transit_time}")
       Rails.logger.info("Built non-GTFS itinerary: #{itinerary.inspect}")
       itinerary
     end    
