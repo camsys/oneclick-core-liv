@@ -160,8 +160,20 @@ class TripPlanner
       build_itineraries(t)
     end
   
-    # Log the itineraries built so far
-    Rails.logger.info("Built itineraries: #{trip_itineraries.map(&:inspect)}")
+    Rails.logger.info("Reclassifying itineraries based on legs")
+    trip_itineraries.each do |itin|
+      all_walk = itin.legs.all? { |leg| leg["mode"] == "WALK" }
+      has_transit = itin.legs.any? { |leg| leg["mode"] != "WALK" }
+  
+      # Adjust trip type
+      if all_walk && itin.trip_type == "transit"
+        Rails.logger.info("Reclassifying walk-only itinerary as walk.")
+        itin.trip_type = "walk"
+      elsif has_transit && itin.trip_type == "walk"
+        Rails.logger.info("Reclassifying transit itinerary as transit.")
+        itin.trip_type = "transit"
+      end
+    end
   
     # Separate new and existing itineraries
     new_itineraries = trip_itineraries.reject(&:persisted?)
@@ -183,7 +195,7 @@ class TripPlanner
     end
   
     Rails.logger.info("All itineraries successfully processed for trip: #{@trip.id}")
-  end  
+  end
 
   # Additional sanity checks can be applied here.
   def filter_itineraries
