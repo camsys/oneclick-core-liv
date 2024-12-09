@@ -342,22 +342,22 @@ class TripPlanner
                             )
       Rails.logger.info("Found or initialized itinerary: #{itinerary.inspect}")
     
-      # Calculate transit time, aligning with GTFS logic
-      transit_time = itinerary.transit_time || @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
-
-      Rails.logger.info("Calculated transit time: #{transit_time}")
+      # Calculate transit time
+      calculated_duration = @router.get_duration(:paratransit) * @paratransit_drive_time_multiplier
+      Rails.logger.info("Calculated transit time for non-GTFS itinerary: #{calculated_duration}")
     
       # Assign attributes for the itinerary
       itinerary.assign_attributes({
         assistant: @options[:assistant],
         companions: @options[:companions],
         cost: svc.fare_for(@trip, router: @router, companions: @options[:companions], assistant: @options[:assistant]),
-        transit_time: transit_time < 86400 ? transit_time : nil # Sanity check for unrealistic durations
+        transit_time: calculated_duration
       })
-  
+    
+      Rails.logger.info("Final transit time for non-GTFS itinerary: #{transit_time}")
       Rails.logger.info("Built non-GTFS itinerary: #{itinerary.inspect}")
       itinerary
-    end
+    end    
   
     # Combine and return both sets of itineraries
     all_itineraries = (router_itineraries + non_gtfs_itineraries).compact
