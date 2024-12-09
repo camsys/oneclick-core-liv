@@ -1,21 +1,29 @@
 $(document).on('turbolinks:load', function() {
-  const tableSelectors = '#purpose-travel-patterns-table, #funding-sources-table, #booking-profiles-table';
+  const tableSelectors = [
+    '#purpose-travel-patterns-table',
+    '#funding-sources-table',
+    '#booking-profiles-table',
+    '#DataTables_Table_0' 
+  ];
 
-  if ($.fn.DataTable.isDataTable(tableSelectors)) {
-    $(tableSelectors).DataTable().destroy();
-  }
+  tableSelectors.forEach(selector => {
+    if ($.fn.DataTable.isDataTable(selector)) {
+      $(selector).DataTable().destroy();
+    }
 
-  let dataTable = $(tableSelectors).DataTable({
-    "columnDefs": [ {
-      "targets": 2,
-      "orderable": false
-    } ]
+    $(selector).DataTable({
+      "columnDefs": [{
+        "targets": 2,
+        "orderable": false
+      }]
+    });
   });
 
   document.addEventListener("turbolinks:before-cache", function() {
-    if ($.fn.DataTable.isDataTable(tableSelectors)) {
-      dataTable.destroy();
-      dataTable = null;
-    }
+    tableSelectors.forEach(selector => {
+      if ($.fn.DataTable.isDataTable(selector)) {
+        $(selector).DataTable().destroy();
+      }
+    });
   });
 });
