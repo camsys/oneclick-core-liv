@@ -3,15 +3,18 @@ $(document).on('turbolinks:load', function() {
     '#purpose-travel-patterns-table',
     '#funding-sources-table',
     '#booking-profiles-table',
-    '#DataTables_Table_0' 
+    '#DataTables_Table_0'
   ];
 
   tableSelectors.forEach(selector => {
     if ($.fn.DataTable.isDataTable(selector)) {
       $(selector).DataTable().destroy();
+      $(selector).empty();
     }
 
     $(selector).DataTable({
+      "destroy": true,
+      "autoWidth": false,
       "columnDefs": [{
         "targets": 2,
         "orderable": false
