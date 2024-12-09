@@ -162,18 +162,22 @@ class TripPlanner
   
     Rails.logger.info("Reclassifying itineraries based on legs")
     trip_itineraries.each do |itin|
-      all_walk = itin.legs.all? { |leg| leg["mode"] == "WALK" }
-      has_transit = itin.legs.any? { |leg| leg["mode"] != "WALK" }
-  
-      # Adjust trip type
-      if all_walk && itin.trip_type == "transit"
-        Rails.logger.info("Reclassifying walk-only itinerary as walk.")
-        itin.trip_type = "walk"
-      elsif has_transit && itin.trip_type == "walk"
-        Rails.logger.info("Reclassifying transit itinerary as transit.")
-        itin.trip_type = "transit"
+      if itin.legs&.any?
+        all_walk = itin.legs.all? { |leg| leg["mode"] == "WALK" }
+        has_transit = itin.legs.any? { |leg| leg["mode"] != "WALK" }
+    
+        # Adjust trip type
+        if all_walk && itin.trip_type == "transit"
+          Rails.logger.info("Reclassifying walk-only itinerary as walk.")
+          itin.trip_type = "walk"
+        elsif has_transit && itin.trip_type == "walk"
+          Rails.logger.info("Reclassifying transit itinerary as transit.")
+          itin.trip_type = "transit"
+        end
+      else
+        Rails.logger.warn("Skipping reclassification for itinerary with no legs: #{itin.inspect}")
       end
-    end
+    end    
   
     # Separate new and existing itineraries
     new_itineraries = trip_itineraries.reject(&:persisted?)
