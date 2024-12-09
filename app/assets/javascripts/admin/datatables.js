@@ -1,23 +1,21 @@
 $(document).on('turbolinks:load', function() {
-  $('.dataTables_wrapper table').each(function() {
-    if ($.fn.DataTable.isDataTable(this)) {
-      $(this).DataTable().destroy();
-    }
-  });
+  const tableSelectors = '#purpose-travel-patterns-table, #funding-sources-table, #booking-profiles-table';
 
-  $('.dataTables_wrapper table').DataTable({
-    "columnDefs": [{
+  if ($.fn.DataTable.isDataTable(tableSelectors)) {
+    $(tableSelectors).DataTable().destroy();
+  }
+
+  let dataTable = $(tableSelectors).DataTable({
+    "columnDefs": [ {
       "targets": 2,
       "orderable": false
-    }]
+    } ]
   });
 
   document.addEventListener("turbolinks:before-cache", function() {
-    $('.dataTables_wrapper table').each(function() {
-      if ($.fn.DataTable.isDataTable(this)) {
-        $(this).DataTable().destroy();
-        $(this).empty(); 
-      }
-    });
+    if ($.fn.DataTable.isDataTable(tableSelectors)) {
+      dataTable.destroy();
+      dataTable = null;
+    }
   });
 });
