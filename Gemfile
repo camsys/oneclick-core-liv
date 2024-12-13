@@ -117,6 +117,9 @@ gem 'em-http-request'
 gem 'aws-sdk-sns' 
 ############################################
 
+gem 'jwt' # For JSON Web Tokens
+gem 'ostruct' # For creating OpenStructs
+
 ### For creating db replicas and snapshots #
 group :development, :qa do 
   gem 'aws-sdk-rds'
