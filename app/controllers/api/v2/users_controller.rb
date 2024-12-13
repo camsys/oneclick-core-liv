@@ -58,7 +58,6 @@ module Api
       def new_session
         Rails.logger.info "Received params: #{params.inspect}"
       
-        # Extract ID Token from the request
         id_token = params[:id_token]
         if id_token.blank?
           Rails.logger.error "ID Token is missing in the request."
@@ -66,12 +65,11 @@ module Api
           return
         end
       
-        Rails.logger.info "ID Token provided. Validating..."
-        
-        # Validate the ID Token with Auth0Client
+        Rails.logger.info "ID Token provided: #{id_token}"
+      
         auth0_client = Auth0Client.new
         validation_response = auth0_client.validate_token(id_token)
-        
+      
         if validation_response.error
           Rails.logger.error "Token validation failed: #{validation_response.error.message}"
           render fail_response(message: "Invalid token: #{validation_response.error.message}", status: 401)
@@ -81,7 +79,6 @@ module Api
         decoded_token = validation_response.decoded_token.first
         Rails.logger.info "Token validated successfully. Decoded token: #{decoded_token.inspect}"
       
-        # Extract email from decoded token
         email = decoded_token['email']
         if email.blank?
           Rails.logger.error "Decoded token is missing email."
@@ -91,7 +88,6 @@ module Api
       
         Rails.logger.info "Email extracted from token: #{email}"
       
-        # Find or create the user using email
         @user = User.find_or_create_by(email: email) do |user|
           user.first_name = decoded_token['given_name']
           user.last_name = decoded_token['family_name']
@@ -112,7 +108,8 @@ module Api
           Rails.logger.error "Failed to find or create user."
           render fail_response(message: "Failed to sign in the user", status: 400)
         end
-      end      
+      end
+          
       
       # Resets the user's password to a random string and sends it to them via email
       # POST /reset_password
