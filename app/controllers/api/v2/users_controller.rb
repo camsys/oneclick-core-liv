@@ -69,6 +69,8 @@ module Api
       
         auth0_client = Auth0Client.new
         validation_response = auth0_client.validate_token(access_token)
+
+        Rails.logger.info "Validation response: #{validation_response.inspect}"
       
         decoded_token = validation_response.decoded_token.first
         Rails.logger.info "Token validated successfully. Decoded token: #{decoded_token.inspect}"
