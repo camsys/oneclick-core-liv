@@ -14,6 +14,7 @@ class Auth0Client
 
     jwks = JSON.parse(jwks_response.body, symbolize_names: true)
     Rails.logger.info "Successfully fetched JWKS."
+    Rails.logger.info "jwks: #{jwks.inspect}"
 
     begin
       decoded_token = JWT.decode(token, nil, true, {
