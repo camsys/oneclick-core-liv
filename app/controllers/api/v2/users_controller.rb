@@ -58,18 +58,18 @@ module Api
       def new_session
         Rails.logger.info "Received params: #{params.inspect}"
       
-        access_token = params[:access_token]
-        if access_token.blank?
-          Rails.logger.error "Access Token is missing in the request."
-          render fail_response(message: "Access Token is required", status: 400)
+        id_token = params[:id_token]
+        if id_token.blank?
+          Rails.logger.error "ID Token is missing in the request."
+          render fail_response(message: "ID Token is required", status: 400)
           return
         end
       
-        Rails.logger.info "Access Token provided: #{access_token}"
+        Rails.logger.info "ID Token provided: #{id_token}"
       
         auth0_client = Auth0Client.new
-        validation_response = auth0_client.validate_token(access_token)
-
+        validation_response = auth0_client.validate_token(id_token)
+      
         Rails.logger.info "Validation response: #{validation_response.inspect}"
       
         decoded_token = validation_response.decoded_token.first
@@ -104,7 +104,7 @@ module Api
           Rails.logger.error "Failed to find or create user."
           render fail_response(message: "Failed to sign in the user", status: 400)
         end
-      end      
+      end          
           
       
       # Resets the user's password to a random string and sends it to them via email

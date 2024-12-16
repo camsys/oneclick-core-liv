@@ -24,7 +24,7 @@ class Auth0Client
         jwks: { keys: jwks[:keys] },
         verify_iss: true,
         iss: "https://dev-oaov6y5cfti013hz.us.auth0.com/",
-        aud: "https://dev-oaov6y5cfti013hz.us.auth0.com/api/v2/",
+        aud: "EnsRsHiDdxAAQEAJ6hnXEGl8GPGdSgFW",
         verify_aud: true
       })
 
