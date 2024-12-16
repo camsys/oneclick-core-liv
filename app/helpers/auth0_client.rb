@@ -13,9 +13,10 @@ class Auth0Client
     end
 
     jwks = JSON.parse(jwks_response.body, symbolize_names: true)
-    Rails.logger.info "Successfully fetched JWKS."
-    Rails.logger.info "jwks: #{jwks.inspect}"
-
+    Rails.logger.info "DEBUG: Received ID Token: #{token}"
+    Rails.logger.info "DEBUG: Decoding token with expected audience: https://dev-oaov6y5cfti013hz.us.auth0.com/api/v2/"
+    Rails.logger.info "DEBUG: JWKS fetched: #{jwks.inspect}"
+    
     begin
       decoded_token = JWT.decode(token, nil, true, {
         algorithms: ['RS256'],
@@ -25,13 +26,12 @@ class Auth0Client
         aud: "https://dev-oaov6y5cfti013hz.us.auth0.com/api/v2/",
         verify_aud: true
       })
-
-      Rails.logger.info "Token decoded successfully: #{decoded_token}"
-      OpenStruct.new(decoded_token: decoded_token, error: nil)
+    
+      Rails.logger.info "DEBUG: Successfully decoded token: #{decoded_token.inspect}"
     rescue JWT::DecodeError => e
-      Rails.logger.error "Token decoding failed: #{e.message}"
-      OpenStruct.new(decoded_token: nil, error: OpenStruct.new(message: e.message, status: 401))
+      Rails.logger.error "DEBUG: Token decoding failed: #{e.message}"
     end
+    
   end
 
   private
