@@ -70,12 +70,6 @@ module Api
         auth0_client = Auth0Client.new
         validation_response = auth0_client.validate_token(access_token)
       
-        if validation_response.error
-          Rails.logger.error "Token validation failed: #{validation_response.error.message}"
-          render fail_response(message: "Invalid token: #{validation_response.error.message}", status: 401)
-          return
-        end
-      
         decoded_token = validation_response.decoded_token.first
         Rails.logger.info "Token validated successfully. Decoded token: #{decoded_token.inspect}"
       
