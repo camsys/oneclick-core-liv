@@ -27,7 +27,6 @@ module Api
       end
 
       def counties
-        scope[:user] ||= object # set user in scope
         County.all.map { |county| { name: county.name } }
       end
 
