@@ -200,7 +200,11 @@ module Api
       def session_hash(user)
         {
           email: user.email,
-          authentication_token: user.authentication_token
+          authentication_token: user.authentication_token,
+          user: user.as_json(
+            only: [:first_name, :last_name, :email, :preferred_locale, :age, :county, :paratransit_id],
+            methods: [:accommodations, :counties, :eligibilities, :trip_types]
+          )
         }
       end
       
