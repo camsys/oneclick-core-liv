@@ -98,8 +98,8 @@ module Api
       
           render success_response(
             message: "User signed in successfully",
-            session: session_hash(@user).merge(user: Api::V2::UserSerializer.new(@user).as_json)
-            )
+            session: session_hash(@user).merge(user: @user)
+          )
         else
           Rails.logger.error "Failed to find or create user."
           render fail_response(message: "Failed to sign in the user", status: 400)
