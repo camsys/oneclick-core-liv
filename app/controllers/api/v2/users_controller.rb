@@ -98,7 +98,7 @@ module Api
       
           render success_response(
             message: "User signed in successfully",
-            session: session_hash(@user).merge(user: UserSerializer.new(@user))
+            session: session_hash(@user).merge(user: UserSerializer.new(@user, { scope: @user }))
             )
         else
           Rails.logger.error "Failed to find or create user."
