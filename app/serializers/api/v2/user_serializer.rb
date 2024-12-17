@@ -6,6 +6,8 @@ module Api
 
       has_many :eligibilities
       has_many :accommodations
+      has_many :counties
+      
 
       def counties
         County.all.map { |county| { name: county.name } }
