@@ -203,6 +203,7 @@ module Api
           authentication_token: user.authentication_token,
           user: user
         }
+      end
       
       def user_params
         params.require(:user).permit(
