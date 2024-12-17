@@ -95,11 +95,14 @@ module Api
           Rails.logger.info "User found or created successfully. Signing in user..."
           sign_in(:user, @user)
           @user.ensure_authentication_token
-      
           render success_response(
             message: "User signed in successfully",
-            session: session_hash(@user).merge(user: UserSerializer.new(@user, { scope: @user }))
-            )
+            session: {
+              email: @user.email,
+              authentication_token: @user.authentication_token,
+              user: UserSerializer.new(@user).as_json
+            }
+          )          
         else
           Rails.logger.error "Failed to find or create user."
           render fail_response(message: "Failed to sign in the user", status: 400)
