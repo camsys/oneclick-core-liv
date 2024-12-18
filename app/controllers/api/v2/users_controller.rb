@@ -58,56 +58,39 @@ module Api
       def new_session
         Rails.logger.info "Received params: #{params.inspect}"
       
+        # Extract email from params
+        email = params[:email]
         id_token = params[:id_token]
-        if id_token.blank?
-          Rails.logger.error "ID Token is missing in the request."
-          render fail_response(message: "ID Token is required", status: 400)
+      
+        if email.blank? || id_token.blank?
+          render fail_response(message: "Email and ID Token are required", status: 400)
           return
         end
       
-        Rails.logger.info "ID Token provided: #{id_token}"
-      
-        auth0_client = Auth0Client.new
-        validation_response = auth0_client.validate_token(id_token)
-      
-        Rails.logger.info "Validation response: #{validation_response.inspect}"
-      
-        decoded_token = validation_response.decoded_token.first
-        Rails.logger.info "Token validated successfully. Decoded token: #{decoded_token.inspect}"
-      
-        email = decoded_token['email']
-        if email.blank?
-          Rails.logger.error "Decoded token is missing email."
-          render fail_response(message: "Invalid token: email is missing", status: 401)
-          return
-        end
-      
-        Rails.logger.info "Email extracted from token: #{email}"
-      
-        @user = User.find_by(email: email)
-        Rails.logger.info "user found: #{@user}"
-        Rails.logger.info "user inspect: #{@user.inspect}"
-        Rails.logger.info "params inspect: #{params.inspect}"
+        # Lookup the user
+        @user = User.find_by(email: email.downcase)
         unless @user
-          Rails.logger.error "Failed to find user with email #{email}"
           render fail_response(message: "User not found", status: 404)
           return
         end
       
-        # Sign in user and store session
-        Rails.logger.info "User found: #{@user.email}. Signing in..."
-        sign_in(:user, @user, store: true) # Ensure Devise stores the user in the session
-        session[:user_id] = @user.id # Explicitly set the session user ID
-        Rails.logger.info "Session user ID set: #{session[:user_id]}"
+        # Validate the ID token with Auth0 (optional if already validated in the frontend)
+        auth0_client = Auth0Client.new
+        validation_response = auth0_client.validate_token(id_token)
+        unless validation_response.valid?
+          render fail_response(message: "Invalid ID Token", status: 401)
+          return
+        end
       
-        # Ensure authentication token is set
+        # Sign in the user and create the session
+        sign_in(:user, @user)
         @user.ensure_authentication_token
       
         render success_response(
           message: "User Signed In Successfully",
           session: session_hash(@user)
         )
-      end
+      end      
       
       # Resets the user's password to a random string and sends it to them via email
       # POST /reset_password
