@@ -58,41 +58,51 @@ module Api
       def new_session
         Rails.logger.info "Received params: #{params.inspect}"
       
-        @user = User.find_by(email: user_params[:email].downcase)
-        Rails.logger.info "User lookup result: #{@user.inspect}"
+        id_token = params[:id_token]
+        if id_token.blank?
+          Rails.logger.error "ID Token is missing in the request."
+          render fail_response(message: "ID Token is required", status: 400)
+          return
+        end
       
-        @fail_status = 400
-        @errors = {}
+        Rails.logger.info "ID Token provided: #{id_token}"
       
-        # Check if a user was found based on the passed email. If so, continue authentication.
-        if @user.present?
-          Rails.logger.info "User found: #{@user.email}"
-          Rails.logger.info "Checking valid API authentication..."
-          Rails.logger.info "User: #{@user.inspect}"
-          Rails.logger.info "User params: #{user_params.inspect}"
-          Rails.logger.info "User plain: #{@user}"
-          # checks if password is incorrect and user is locked, and unlocks if lock is expired
-          Rails.logger.info "User passed authentication check. Signing in..."
+        auth0_client = Auth0Client.new
+        validation_response = auth0_client.validate_token(id_token)
+      
+        Rails.logger.info "Validation response: #{validation_response.inspect}"
+      
+        decoded_token = validation_response.decoded_token.first
+        Rails.logger.info "Token validated successfully. Decoded token: #{decoded_token.inspect}"
+      
+        email = decoded_token['email']
+        if email.blank?
+          Rails.logger.error "Decoded token is missing email."
+          render fail_response(message: "Invalid token: email is missing", status: 401)
+          return
+        end
+      
+        Rails.logger.info "Email extracted from token: #{email}"
+      
+        # find the user by email
+        @user = User.find_by(email: email)
+      
+        if @user.persisted?
+          Rails.logger.info "User found or created successfully. Signing in user..."
           sign_in(:user, @user)
           @user.ensure_authentication_token
-          Rails.logger.info "User signed in: #{session_hash(@user).inspect}"
+          render success_response(
+            message: "User signed in successfully",
+            session: {
+              email: @user.email,
+              authentication_token: @user.authentication_token,
+            }
+          )          
         else
-          Rails.logger.warn "No user found with email: #{user_params[:email]}"
-          @errors[:email] = "Could not find user with email #{user_params[:email]}"
+          Rails.logger.error "Failed to find or create user."
+          render fail_response(message: "Failed to sign in the user", status: 400)
         end
-      
-        # Check if any errors were recorded. If not, send a success response.
-        if @errors.empty?
-          Rails.logger.info "User signed in successfully. Returning session hash."
-          render(success_response(
-                  message: "User Signed In Successfully", 
-                  session: session_hash(@user)
-                )) and return
-        else # If there are any errors, send back a failure response.
-          Rails.logger.warn "Failed sign in. Errors: #{@errors.inspect}"
-          render(fail_response(errors: @errors, status: @fail_status))
-        end
-      end
+      end   
       
       # Resets the user's password to a random string and sends it to them via email
       # POST /reset_password
