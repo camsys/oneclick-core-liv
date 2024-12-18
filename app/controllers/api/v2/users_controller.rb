@@ -60,6 +60,7 @@ module Api
         if params[:id_token].present?
           auth0_client = Auth0Client.new
           validation_response = auth0_client.validate_token(params[:id_token])
+          Rails.logger.info "Token validation response: #{validation_response.inspect}"
       
           if validation_response.error.present?
             Rails.logger.error "Token validation failed: #{validation_response.error}"
@@ -77,6 +78,8 @@ module Api
           # Inject email into params for further processing
           params[:user] = { email: email }
         end
+
+        Rails.logger.info "User params: #{params[:user].inspect}"
       
         # Proceed with the old logic for user session/authentication
         @user = User.find_by(email: user_params[:email].downcase)
