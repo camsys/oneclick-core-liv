@@ -75,13 +75,13 @@ module Api
             render fail_response(message: "Email is missing in token", status: 401) and return
           end
       
-          # Inject email into params for further processing
-          params[:user] = { email: email }
+          # Set email in user params and permit it
+          params[:user] = ActionController::Parameters.new(email: email).permit(:email)
         end
-
+      
         Rails.logger.info "User params: #{params[:user].inspect}"
       
-        # Proceed with the old logic for user session/authentication
+        # Proceed with old session authentication logic
         @user = User.find_by(email: user_params[:email].downcase)
         @fail_status = 400
         @errors = {}
@@ -94,7 +94,7 @@ module Api
           @errors[:email] = "User not found or invalid credentials"
           render(fail_response(errors: @errors, status: @fail_status))
         end
-      end
+      end      
       
       # Resets the user's password to a random string and sends it to them via email
       # POST /reset_password
