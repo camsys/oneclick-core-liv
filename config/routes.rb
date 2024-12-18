@@ -129,7 +129,6 @@ Rails.application.routes.draw do
       end
       post 'sign_up' => 'users#create'
       post 'sign_in' => 'users#new_session'
-      post 'authenticate' => 'users#authenticate'
       delete 'sign_out' => 'users#end_session'
       get 'counties' => 'users#counties'
       get 'trip_purposes', to: 'trips#trip_purposes'

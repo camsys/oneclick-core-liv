@@ -53,47 +53,36 @@ module Api
       end
       
       # Signs in an existing user, returning auth token
-
-      # POST /authenticate
-      def authenticate
-        id_token = params[:id_token]
-        Rails.logger.info "ID Token received: #{id_token}"
-      
-        if id_token.blank?
-          render fail_response(message: "ID Token is required", status: 400) and return
-        end
-      
-        auth0_client = Auth0Client.new
-        validation_response = auth0_client.validate_token(id_token)
-      
-        if validation_response.error.present?
-          Rails.logger.error "Token validation failed: #{validation_response.error}"
-          render fail_response(message: "Invalid token", status: 401) and return
-        end
-      
-        decoded_token = validation_response.decoded_token.first
-        email = decoded_token["email"]
-        Rails.logger.info "Extracted email: #{email.inspect}"
-      
-        if email.blank?
-          Rails.logger.error "Email missing from decoded token."
-          render fail_response(message: "Invalid token: email is missing", status: 401) and return
-        end
-      
-        # Properly set params[:user] to meet user_params expectations
-        params[:user] = { email: email }
-        Rails.logger.info "Params set for new_session: #{params.inspect}"
-      
-        new_session
-      end      
-
       # POST /sign_in
       # Leverages devise lockable module: https://github.com/plataformatec/devise/blob/master/lib/devise/models/lockable.rb
       def new_session
+        # Extract email via ID token (if provided)
+        if params[:id_token].present?
+          auth0_client = Auth0Client.new
+          validation_response = auth0_client.validate_token(params[:id_token])
+      
+          if validation_response.error.present?
+            Rails.logger.error "Token validation failed: #{validation_response.error}"
+            render fail_response(message: "Invalid token", status: 401) and return
+          end
+      
+          decoded_token = validation_response.decoded_token.first
+          email = decoded_token["email"]
+      
+          if email.blank?
+            Rails.logger.error "Email missing in decoded token."
+            render fail_response(message: "Email is missing in token", status: 401) and return
+          end
+      
+          # Inject email into params for further processing
+          params[:user] = { email: email }
+        end
+      
+        # Proceed with the old logic for user session/authentication
         @user = User.find_by(email: user_params[:email].downcase)
         @fail_status = 400
         @errors = {}
-
+      
         if @user.present? && @user.valid_for_api_authentication?(user_params[:password])
           sign_in(:user, @user)
           @user.ensure_authentication_token
