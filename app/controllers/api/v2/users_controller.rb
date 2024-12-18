@@ -74,49 +74,31 @@ module Api
       
         decoded_token = validation_response.decoded_token.first
         Rails.logger.info "Token validated successfully. Decoded token: #{decoded_token.inspect}"
-      
-        # Extract email from token
+
         email = decoded_token['email']
         if email.blank?
           Rails.logger.error "Decoded token is missing email."
           render fail_response(message: "Invalid token: email is missing", status: 401)
           return
         end
-
-        Rails.logger.info "Email extracted from token: #{email}"
-
-        # Inject user email into params[:user] to mimic the old behavior
-        params[:user] = { email: email }
-
+        
+        # Inject email and placeholder password into params[:user] to mimic the old behavior
+        params[:user] = { email: email, password: 'auth0_placeholder' }
         Rails.logger.info "Injected user params: #{params[:user].inspect}"
-
-      
-        Rails.logger.info "Email extracted from token: #{email}"
-      
-        @user = User.find_by(email: email)
-        Rails.logger.info "User found: #{@user.email}"
-        Rails.logger.info "Checking valid API authentication..."
-        Rails.logger.info "User: #{@user.inspect}"
-        Rails.logger.info "User params: #{user_params.inspect}"
-        Rails.logger.info "User plain: #{@user}"
-      
-        if @user.persisted?
-          Rails.logger.info "User found or created successfully. Signing in user..."
+        
+        @user = User.find_by(email: user_params[:email].downcase)
+        Rails.logger.info "User lookup result: #{@user.inspect}"
+        
+        # Continue the rest of the authentication logic
+        if @user.present?
+          Rails.logger.info "User found: #{@user.email}"
           sign_in(:user, @user)
           @user.ensure_authentication_token
-          
-          # Explicitly reload the session to ensure it's active
-          sign_out(:user) if current_user
-          sign_in(:user, @user)
-          session[:user_id] = @user.id  # Set user ID in session explicitly
-        
-          render success_response(
-            message: "User signed in successfully",
-            session: session_hash(@user)
-          )
+          Rails.logger.info "User signed in successfully: #{session_hash(@user).inspect}"
+          render success_response(message: "User Signed In Successfully", session: session_hash(@user))
         else
-          Rails.logger.error "Failed to find or create user."
-          render fail_response(message: "Failed to sign in the user", status: 400)
+          Rails.logger.error "Failed to find user with email #{email}"
+          render fail_response(message: "User not found", status: 404)
         end        
       end          
           
