@@ -56,45 +56,56 @@ module Api
       # POST /sign_in
       # Leverages devise lockable module: https://github.com/plataformatec/devise/blob/master/lib/devise/models/lockable.rb
       def new_session
-        # Extract email via ID token (if provided)
-        if params[:id_token].present?
-          auth0_client = Auth0Client.new
-          validation_response = auth0_client.validate_token(params[:id_token])
-          Rails.logger.info "Token validation response: #{validation_response.inspect}"
+        Rails.logger.info "Received params: #{params.inspect}"
       
-          if validation_response.error.present?
-            Rails.logger.error "Token validation failed: #{validation_response.error}"
-            render fail_response(message: "Invalid token", status: 401) and return
-          end
-      
-          decoded_token = validation_response.decoded_token.first
-          email = decoded_token["email"]
-      
-          if email.blank?
-            Rails.logger.error "Email missing in decoded token."
-            render fail_response(message: "Email is missing in token", status: 401) and return
-          end
-      
-          # Set email in user params and permit it
-          params[:user] = ActionController::Parameters.new(email: email).permit(:email)
+        id_token = params[:id_token]
+        if id_token.blank?
+          Rails.logger.error "ID Token is missing in the request."
+          render fail_response(message: "ID Token is required", status: 400)
+          return
         end
       
-        Rails.logger.info "User params: #{params[:user].inspect}"
+        Rails.logger.info "ID Token provided: #{id_token}"
       
-        # Proceed with old session authentication logic
-        @user = User.find_by(email: user_params[:email].downcase)
-        @fail_status = 400
-        @errors = {}
+        auth0_client = Auth0Client.new
+        validation_response = auth0_client.validate_token(id_token)
       
-        if @user.present? && @user.valid_for_api_authentication?(user_params[:password])
+        Rails.logger.info "Validation response: #{validation_response.inspect}"
+      
+        decoded_token = validation_response.decoded_token.first
+        Rails.logger.info "Token validated successfully. Decoded token: #{decoded_token.inspect}"
+      
+        email = decoded_token['email']
+        if email.blank?
+          Rails.logger.error "Decoded token is missing email."
+          render fail_response(message: "Invalid token: email is missing", status: 401)
+          return
+        end
+      
+        Rails.logger.info "Email extracted from token: #{email}"
+      
+        @user = User.find_or_create_by(email: email) do |user|
+          user.first_name = decoded_token['given_name']
+          user.last_name = decoded_token['family_name']
+          user.password = SecureRandom.hex(10) # Random password since Auth0 handles authentication
+          Rails.logger.info "Created new user: #{user.inspect}"
+        end
+      
+        if @user.persisted?
+          Rails.logger.info "User found or created successfully. Signing in user..."
           sign_in(:user, @user)
           @user.ensure_authentication_token
-          render(success_response(message: "User Signed In Successfully", session: session_hash(@user))) and return
+      
+          render success_response(
+            message: "User signed in successfully",
+            session: session_hash(@user)
+          )
         else
-          @errors[:email] = "User not found or invalid credentials"
-          render(fail_response(errors: @errors, status: @fail_status))
+          Rails.logger.error "Failed to find or create user."
+          render fail_response(message: "Failed to sign in the user", status: 400)
         end
-      end      
+      end          
+          
       
       # Resets the user's password to a random string and sends it to them via email
       # POST /reset_password
