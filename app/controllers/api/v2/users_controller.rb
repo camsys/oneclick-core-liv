@@ -84,8 +84,11 @@ module Api
       
         Rails.logger.info "Email extracted from token: #{email}"
       
-        # find the user by email
-        @user = User.find_by(email: email)
+        # find the user by email or create them if they don't exist
+        @user = User.find_or_create_by(email: email) do |user|
+          user.email = email
+          Rails.logger.info "Creating a new user with email: #{email}"
+        end
       
         if @user.persisted?
           Rails.logger.info "User found or created successfully. Signing in user..."
