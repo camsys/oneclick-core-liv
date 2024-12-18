@@ -85,6 +85,9 @@ module Api
         Rails.logger.info "Email extracted from token: #{email}"
       
         @user = User.find_by(email: email)
+        Rails.logger.info "user found: #{@user}"
+        Rails.logger.info "user inspect: #{@user.inspect}"
+        Rails.logger.info "params inspect: #{params.inspect}"
         unless @user
           Rails.logger.error "Failed to find user with email #{email}"
           render fail_response(message: "User not found", status: 404)
@@ -93,7 +96,7 @@ module Api
       
         # Sign in user and store session
         Rails.logger.info "User found: #{@user.email}. Signing in..."
-        sign_in(:user, @user)
+        sign_in(:user, @user, store: true) # Ensure Devise stores the user in the session
         session[:user_id] = @user.id # Explicitly set the session user ID
         Rails.logger.info "Session user ID set: #{session[:user_id]}"
       
