@@ -92,7 +92,12 @@ module Api
           Rails.logger.info "User found or created successfully. Signing in user..."
           sign_in(:user, @user)
           @user.ensure_authentication_token
-      
+          
+          # Explicitly reload the session to ensure it's active
+          sign_out(:user) if current_user
+          sign_in(:user, @user)
+          session[:user_id] = @user.id  # Set user ID in session explicitly
+        
           render success_response(
             message: "User signed in successfully",
             session: session_hash(@user)
@@ -100,7 +105,7 @@ module Api
         else
           Rails.logger.error "Failed to find or create user."
           render fail_response(message: "Failed to sign in the user", status: 400)
-        end
+        end        
       end          
           
       
