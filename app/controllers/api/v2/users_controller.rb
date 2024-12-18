@@ -85,8 +85,11 @@ module Api
         Rails.logger.info "Email extracted from token: #{email}"
       
         @user = User.find_by(email: email)
-
-        Rails.logger.info "User found: #{@user}"
+        Rails.logger.info "User found: #{@user.email}"
+        Rails.logger.info "Checking valid API authentication..."
+        Rails.logger.info "User: #{@user.inspect}"
+        Rails.logger.info "User params: #{user_params.inspect}"
+        Rails.logger.info "User plain: #{@user}"
       
         if @user.persisted?
           Rails.logger.info "User found or created successfully. Signing in user..."
