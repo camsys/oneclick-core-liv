@@ -86,7 +86,8 @@ module Api
       
         # find the user by email or create them if they don't exist
         @user = User.find_or_create_by(email: email) do |user|
-          user.email = email
+          user.password = SecureRandom.hex(10)
+          user.password_confirmation = user.password
           Rails.logger.info "Creating a new user with email: #{email}"
         end
       
