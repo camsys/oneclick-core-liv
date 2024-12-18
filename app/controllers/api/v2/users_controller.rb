@@ -73,10 +73,17 @@ module Api
       
         decoded_token = validation_response.decoded_token.first
         email = decoded_token["email"]
-        Rails.logger.info "Email extracted: #{email}"
+        Rails.logger.info "Extracted email: #{email.inspect}"
       
-        # Directly call new_session with email as the identifier
+        if email.blank?
+          Rails.logger.error "Email missing from decoded token."
+          render fail_response(message: "Invalid token: email is missing", status: 401) and return
+        end
+      
+        # Properly set params[:user] to meet user_params expectations
         params[:user] = { email: email }
+        Rails.logger.info "Params set for new_session: #{params.inspect}"
+      
         new_session
       end      
 
