@@ -58,39 +58,67 @@ module Api
       def new_session
         Rails.logger.info "Received params: #{params.inspect}"
       
-        # Extract email from params
-        email = params[:email]
-        id_token = params[:id_token]
+        @user = User.find_by(email: user_params[:email].downcase)
+        Rails.logger.info "User lookup result: #{@user.inspect}"
       
-        if email.blank? || id_token.blank?
-          render fail_response(message: "Email and ID Token are required", status: 400)
-          return
+        @fail_status = 400
+        @errors = {}
+      
+        # Check if a user was found based on the passed email. If so, continue authentication.
+        if @user.present?
+          Rails.logger.info "User found: #{@user.email}"
+          Rails.logger.info "Checking valid API authentication..."
+          Rails.logger.info "User: #{@user.inspect}"
+          Rails.logger.info "User params: #{user_params.inspect}"
+          Rails.logger.info "User plain: #{@user}"
+          # checks if password is incorrect and user is locked, and unlocks if lock is expired
+          if @user.valid_for_api_authentication?(user_params[:password])
+            Rails.logger.info "User passed authentication check. Signing in..."
+            sign_in(:user, @user)
+            @user.ensure_authentication_token
+            Rails.logger.info "User signed in: #{session_hash(@user).inspect}"
+          else
+            Rails.logger.info "User failed authentication. Checking lock and error states."
+      
+            if !@user.confirmed? && @user.confirmation_required?
+              @errors[:unconfirmed] = "You must confirm your account by clicking the link in the confirmation email that was sent."
+              Rails.logger.warn "Account not confirmed for user: #{@user.email}"
+            end
+      
+            if @user.on_last_attempt?
+              @errors[:last_attempt] = "You have one more attempt before account is locked for #{User.unlock_in / 60} minutes."
+              Rails.logger.warn "User on last attempt: #{@user.email}"
+            end    
+            if @user.access_locked?
+              @errors[:locked] = "User account is temporarily locked. Try again in #{@user.time_until_unlock} minutes."
+              Rails.logger.warn "User account locked: #{@user.email}"
+            end
+      
+            unless @user.access_locked? || @user.valid_password?(user_params[:password])
+              @errors[:password] = "Incorrect password for #{@user.email}."
+              Rails.logger.warn "Incorrect password for user: #{@user.email}"
+            end
+      
+            @fail_status = 401
+            @errors = @errors.merge(@user.errors.to_h)
+          end
+        else
+          Rails.logger.warn "No user found with email: #{user_params[:email]}"
+          @errors[:email] = "Could not find user with email #{user_params[:email]}"
         end
       
-        # Lookup the user
-        @user = User.find_by(email: email.downcase)
-        unless @user
-          render fail_response(message: "User not found", status: 404)
-          return
+        # Check if any errors were recorded. If not, send a success response.
+        if @errors.empty?
+          Rails.logger.info "User signed in successfully. Returning session hash."
+          render(success_response(
+                  message: "User Signed In Successfully", 
+                  session: session_hash(@user)
+                )) and return
+        else # If there are any errors, send back a failure response.
+          Rails.logger.warn "Failed sign in. Errors: #{@errors.inspect}"
+          render(fail_response(errors: @errors, status: @fail_status))
         end
-      
-        # Validate the ID token with Auth0 (optional if already validated in the frontend)
-        auth0_client = Auth0Client.new
-        validation_response = auth0_client.validate_token(id_token)
-        unless validation_response.valid?
-          render fail_response(message: "Invalid ID Token", status: 401)
-          return
-        end
-      
-        # Sign in the user and create the session
-        sign_in(:user, @user)
-        @user.ensure_authentication_token
-      
-        render success_response(
-          message: "User Signed In Successfully",
-          session: session_hash(@user)
-        )
-      end      
+      end
       
       # Resets the user's password to a random string and sends it to them via email
       # POST /reset_password
