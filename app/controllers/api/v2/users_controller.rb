@@ -74,34 +74,37 @@ module Api
       
         decoded_token = validation_response.decoded_token.first
         Rails.logger.info "Token validated successfully. Decoded token: #{decoded_token.inspect}"
-
+      
         email = decoded_token['email']
         if email.blank?
           Rails.logger.error "Decoded token is missing email."
           render fail_response(message: "Invalid token: email is missing", status: 401)
           return
         end
-        
-        # Inject email and placeholder password into params[:user] to mimic the old behavior
-        params[:user] = { email: email, password: 'auth0_placeholder' }
-        Rails.logger.info "Injected user params: #{params[:user].inspect}"
-        
-        @user = User.find_by(email: user_params[:email].downcase)
-        Rails.logger.info "User lookup result: #{@user.inspect}"
-        
-        # Continue the rest of the authentication logic
-        if @user.present?
-          Rails.logger.info "User found: #{@user.email}"
-          sign_in(:user, @user)
-          @user.ensure_authentication_token
-          Rails.logger.info "User signed in successfully: #{session_hash(@user).inspect}"
-          render success_response(message: "User Signed In Successfully", session: session_hash(@user))
-        else
+      
+        Rails.logger.info "Email extracted from token: #{email}"
+      
+        @user = User.find_by(email: email)
+        unless @user
           Rails.logger.error "Failed to find user with email #{email}"
           render fail_response(message: "User not found", status: 404)
-        end        
-      end          
-          
+          return
+        end
+      
+        # Sign in user and store session
+        Rails.logger.info "User found: #{@user.email}. Signing in..."
+        sign_in(:user, @user)
+        session[:user_id] = @user.id # Explicitly set the session user ID
+        Rails.logger.info "Session user ID set: #{session[:user_id]}"
+      
+        # Ensure authentication token is set
+        @user.ensure_authentication_token
+      
+        render success_response(
+          message: "User Signed In Successfully",
+          session: session_hash(@user)
+        )
+      end
       
       # Resets the user's password to a random string and sends it to them via email
       # POST /reset_password
