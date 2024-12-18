@@ -75,12 +75,21 @@ module Api
         decoded_token = validation_response.decoded_token.first
         Rails.logger.info "Token validated successfully. Decoded token: #{decoded_token.inspect}"
       
+        # Extract email from token
         email = decoded_token['email']
         if email.blank?
           Rails.logger.error "Decoded token is missing email."
           render fail_response(message: "Invalid token: email is missing", status: 401)
           return
         end
+
+        Rails.logger.info "Email extracted from token: #{email}"
+
+        # Inject user email into params[:user] to mimic the old behavior
+        params[:user] = { email: email }
+
+        Rails.logger.info "Injected user params: #{params[:user].inspect}"
+
       
         Rails.logger.info "Email extracted from token: #{email}"
       
