@@ -53,53 +53,48 @@ module Api
       end
       
       # Signs in an existing user, returning auth token
+
+      # POST /authenticate
+      def authenticate
+        id_token = params[:id_token]
+        Rails.logger.info "ID Token received: #{id_token}"
+      
+        if id_token.blank?
+          render fail_response(message: "ID Token is required", status: 400) and return
+        end
+      
+        auth0_client = Auth0Client.new
+        validation_response = auth0_client.validate_token(id_token)
+      
+        if validation_response.error.present?
+          Rails.logger.error "Token validation failed: #{validation_response.error}"
+          render fail_response(message: "Invalid token", status: 401) and return
+        end
+      
+        decoded_token = validation_response.decoded_token.first
+        email = decoded_token["email"]
+        Rails.logger.info "Email extracted: #{email}"
+      
+        # Directly call new_session with email as the identifier
+        params[:user] = { email: email }
+        new_session
+      end      
+
       # POST /sign_in
       # Leverages devise lockable module: https://github.com/plataformatec/devise/blob/master/lib/devise/models/lockable.rb
       def new_session
         @user = User.find_by(email: user_params[:email].downcase)
         @fail_status = 400
-        
-        # Check if a user was found based on the passed email. If so, continue authentication.
-        if @user.present?
-          # checks if password is incorrect and user is locked, and unlocks if lock is expired
-          if @user.valid_for_api_authentication?(user_params[:password])
-            sign_in(:user, @user)
-            @user.ensure_authentication_token
-          else
-            # Otherwise, add some errors to the response depending on what went wrong.
-            if !@user.confirmed? && @user.confirmation_required?
-              @errors[:unconfirmed] = "You must confirm your account by clicking the link in the confirmation email that was sent."
-            end
-            
-            if @user.on_last_attempt?
-              @errors[:last_attempt] = "You have one more attempt before account is locked for #{User.unlock_in / 60} minutes."
-            end
+        @errors = {}
 
-            if @user.access_locked?
-              @errors[:locked] = "User account is temporarily locked. Try again in #{@user.time_until_unlock} minutes."
-            end
-            
-            unless @user.access_locked? || @user.valid_password?(user_params[:password])
-              @errors[:password] = "Incorrect password for #{@user.email}."
-            end
-            
-            @fail_status = 401
-            @errors = @errors.merge(@user.errors.to_h)            
-          end
+        if @user.present? && @user.valid_for_api_authentication?(user_params[:password])
+          sign_in(:user, @user)
+          @user.ensure_authentication_token
+          render(success_response(message: "User Signed In Successfully", session: session_hash(@user))) and return
         else
-          @errors[:email] = "Could not find user with email #{user_params[:email]}"
-        end
-
-        # Check if any errors were recorded. If not, send a success response.
-        if @errors.empty?
-          render(success_response(
-              message: "User Signed In Successfully", 
-              session: session_hash(@user)
-            )) and return
-        else # If there are any errors, send back a failure response.
+          @errors[:email] = "User not found or invalid credentials"
           render(fail_response(errors: @errors, status: @fail_status))
         end
-        
       end
       
       # Resets the user's password to a random string and sends it to them via email
