@@ -84,12 +84,9 @@ module Api
       
         Rails.logger.info "Email extracted from token: #{email}"
       
-        @user = User.find_or_create_by(email: email) do |user|
-          user.first_name = decoded_token['given_name']
-          user.last_name = decoded_token['family_name']
-          user.password = SecureRandom.hex(10) # Random password since Auth0 handles authentication
-          Rails.logger.info "Created new user: #{user.inspect}"
-        end
+        @user = User.find_by(email: email)
+
+        Rails.logger.info "User found: #{@user}"
       
         if @user.persisted?
           Rails.logger.info "User found or created successfully. Signing in user..."
