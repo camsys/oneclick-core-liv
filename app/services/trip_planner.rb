@@ -195,6 +195,11 @@ class TripPlanner
         end
       end
 
+      # Set trip type to walk if it's a transit trip with only walking legs
+      if itin.trip_type == 'transit' && itin.legs.all? { |leg| leg['mode'] == 'WALK' }
+        itin.trip_type = 'walk'
+      end  
+
       ## We've passed all the tests
       itin 
     end
