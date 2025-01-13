@@ -161,7 +161,7 @@ class TripPlanner
     max_walk_minutes = Config.max_walk_minutes
     max_walk_distance = Config.max_walk_distance
     itineraries = @trip.itineraries.map do |itin|
-
+      
       ## Test: Make sure we never exceed the maximium walk time
       if itin.walk_time and itin.walk_time > max_walk_minutes*60
         next
@@ -196,9 +196,9 @@ class TripPlanner
       end
 
       # Set trip type to walk if it's a transit trip with only walking legs
-      if itin.trip_type == 'transit' && itin.legs.all? { |leg| leg['mode'] == 'WALK' }
+      if @trip.itineraries.map(&:trip_type).include?('walk') && itin.trip_type == 'transit' && itin.legs.all? { |leg| leg['mode'] == 'WALK' }
         itin.trip_type = 'walk'
-      end  
+      end
 
       ## We've passed all the tests
       itin 
