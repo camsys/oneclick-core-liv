@@ -43,6 +43,7 @@ class Admin::ConfigsController < Admin::AdminController
     :bike_reluctance,
     :dashboard_mode,
     :maximum_booking_notice,
+    :auth_mode,
     daily_scheduled_tasks: []
   ].freeze
 

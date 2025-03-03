@@ -23,8 +23,8 @@ class Auth0Client
         algorithms: ['RS256'],
         jwks: { keys: jwks[:keys] },
         verify_iss: true,
-        iss: Config.auth0_issuer,
-        aud: Config.auth0_audience,
+        iss: "https://dev-oaov6y5cfti013hz.us.auth0.com/",
+        aud: "EnsRsHiDdxAAQEAJ6hnXEGl8GPGdSgFW",
         verify_aud: true
       })
 
@@ -39,7 +39,7 @@ class Auth0Client
   private
 
   def fetch_jwks
-    uri = URI(Config.auth0_jwks_url)
+    uri = URI("https://dev-oaov6y5cfti013hz.us.auth0.com/.well-known/jwks.json")
     Rails.logger.info "Fetching JWKS from #{uri}..."
     Net::HTTP.get_response(uri)
   end

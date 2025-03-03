@@ -67,6 +67,11 @@
       input_html: {value: Config.maximum_booking_notice},
       as: :integer
 
+    = f.input :auth_mode, required: true,
+      label: "Authentication Mode",
+      input_html: { value: Config.auth_mode },
+      as: :select,
+      collection: [['Legacy', 'legacy'], ['Auth0', 'auth0']]
 
   :javascript
     $(document).ready(function() {    
