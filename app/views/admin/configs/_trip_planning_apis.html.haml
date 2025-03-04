@@ -61,6 +61,12 @@
     input_html: {value: Config.lyft_client_token},
     as: :string
 
+  = f.input :auth_mode, required: true,
+    label: "Authentication Mode",
+    input_html: { value: Config.auth_mode },
+    as: :select,
+    collection: [['Legacy', 'legacy'], ['Auth0', 'auth0']]
+
 :javascript
   $(document).ready(function() {    
     new FormHandler($('#{form_selector_from_id}'));
