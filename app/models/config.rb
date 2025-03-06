@@ -62,9 +62,9 @@ class Config < ApplicationRecord
     uber_token: "",
     ui_url: "", # (String) The url for the frontend.
     walk_reluctance: 10, # (Integer) ???
-    auth0_issuer: "https://dev-oaov6y5cfti013hz.us.auth0.com/", # (String) Auth0 issuer URL
-    auth0_audience: "EnsRsHiDdxAAQEAJ6hnXEGl8GPGdSgFW", # (String) Auth0 audience
-    auth0_jwks_url: "https://dev-oaov6y5cfti013hz.us.auth0.com/.well-known/jwks.json" # (String) Auth0 JWKS URL
+    auth0_issuer: "", # (String) Auth0 issuer URL
+    auth0_audience: "", # (String) Auth0 audience
+    auth0_jwks_url: "" # (String) Auth0 JWKS URL
   }
 
   ##
