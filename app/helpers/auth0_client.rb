@@ -23,10 +23,10 @@ class Auth0Client
         algorithms: ['RS256'],
         jwks: { keys: jwks[:keys] },
         verify_iss: true,
-        iss: "",
-        aud: "",
+        iss: ENV["AUTH0_ISSUER"],
+        aud: ENV["AUTH0_AUDIENCE"],
         verify_aud: true
-      })
+      })      
 
       Rails.logger.info "DEBUG: Successfully decoded token: #{decoded_token.inspect}"
       OpenStruct.new(decoded_token: decoded_token, error: nil)
@@ -39,7 +39,7 @@ class Auth0Client
   private
 
   def fetch_jwks
-    uri = URI("")
+    uri = URI(ENV["AUTH0_JWKS_URL"])
     Rails.logger.info "Fetching JWKS from #{uri}..."
     Net::HTTP.get_response(uri)
   end
