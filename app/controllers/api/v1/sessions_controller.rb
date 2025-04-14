@@ -19,7 +19,7 @@ module Api
           password = session_params[:password]
           Rails.logger.info "Extracted email: #{email}, checking credentials..."
           @user = User.find_by(email: email)
-
+      
           if @user && @user.valid_password?(password)
             Rails.logger.info "Valid credentials provided. Signing in the user..."
             sign_in(:user, @user)
@@ -55,12 +55,30 @@ module Api
               return
             end
             Rails.logger.info "Extracted email from ID Token: #{email}"
-            @user = User.find_or_create_by(email: email) do |user|
-              user.first_name = decoded_token['given_name']
-              user.last_name = decoded_token['family_name']
-              user.password = SecureRandom.hex(10)
+      
+            @user = User.find_by(email: email)
+      
+            if @user.present?
+              Rails.logger.info "User already exists, checking user_type..."
+              @user.update(user_type: 'retro_fitted') if @user.user_type.blank?
+            else
               Rails.logger.info "Creating a new user with email: #{email}"
+              password = SecureRandom.hex(10)
+              @user = User.new(
+                email: email,
+                first_name: decoded_token['given_name'],
+                last_name: decoded_token['family_name'],
+                password: password,
+                password_confirmation: password,
+                user_type: 'auth0'
+              )
+              unless @user.save
+                Rails.logger.error "Failed to create new Auth0 user: #{email}"
+                render status: 400, json: { message: "Failed to sign in the user" }
+                return
+              end
             end
+      
             Rails.logger.info "User found or created: #{@user.inspect}"
             Rails.logger.info "Signing in the user..."
             sign_in(:user, @user)
@@ -79,7 +97,7 @@ module Api
             password = session_params[:password]
             Rails.logger.info "Extracted email: #{email}, checking credentials..."
             @user = User.find_by(email: email)
-
+      
             if @user && @user.valid_password?(password)
               Rails.logger.info "Valid credentials provided. Signing in the user..."
               sign_in(:user, @user)
