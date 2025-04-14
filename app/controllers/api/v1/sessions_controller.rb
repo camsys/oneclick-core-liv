@@ -57,12 +57,16 @@ module Api
             Rails.logger.info "Extracted email from ID Token: #{email}"
       
             @user = User.find_by(email: email)
-      
+
             if @user.present?
-              Rails.logger.info "User already exists, checking user_type..."
-              @user.update(user_type: 'retro_fitted') if @user.user_type.blank?
+              if @user.user_type.blank?
+                @user.update(user_type: 'retro_fitted')
+                Rails.logger.info "Existing user detected, user_type set to retro_fitted"
+              else
+                Rails.logger.info "Existing user with user_type: #{@user.user_type}, no update needed"
+              end
             else
-              Rails.logger.info "Creating a new user with email: #{email}"
+              Rails.logger.info "Creating new user with user_type auth0"
               password = SecureRandom.hex(10)
               @user = User.new(
                 email: email,
