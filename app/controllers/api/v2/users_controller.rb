@@ -57,6 +57,7 @@ module Api
           Rails.logger.info "Legacy login flow detected in UsersController#new_session."
           @user = User.find_by(email: user_params[:email].downcase)
           @fail_status = 400
+      
           if @user.present?
             if @user.valid_for_api_authentication?(user_params[:password])
               sign_in(:user, @user)
@@ -66,19 +67,19 @@ module Api
               if !@user.confirmed? && @user.confirmation_required?
                 @errors[:unconfirmed] = "You must confirm your account by clicking the link in the confirmation email that was sent."
               end
-
+      
               if @user.on_last_attempt?
                 @errors[:last_attempt] = "You have one more attempt before account is locked for #{User.unlock_in / 60} minutes."
               end
-
+      
               if @user.access_locked?
                 @errors[:locked] = "User account is temporarily locked. Try again in #{@user.time_until_unlock} minutes."
               end
-
+      
               unless @user.access_locked? || @user.valid_password?(user_params[:password])
                 @errors[:password] = "Incorrect password for #{@user.email}."
               end
-
+      
               @fail_status = 401
               @errors = @errors.merge(@user.errors.to_h)
             end
@@ -86,7 +87,7 @@ module Api
             @errors ||= {}
             @errors[:email] = "Could not find user with email #{user_params[:email]}"
           end
-
+      
           if @errors.blank?
             render(success_response(
               message: "User Signed In Successfully",
@@ -103,35 +104,36 @@ module Api
             render fail_response(message: "ID Token is required", status: 400)
             return
           end
-
+      
           Rails.logger.info "ID Token provided: #{id_token}"
           auth0_client = Auth0Client.new
-          validation_response = auth0_client.validate_token(id_token)
-        Rails.logger.info "Validation response: #{validation_response.inspect}"
-        Rails.logger.info "Validation response: #{validation_response.inspect}"
-      
+          validation_response = auth0_client.validate_token(id_token)      
           Rails.logger.info "Validation response: #{validation_response.inspect}"
       
           decoded_token = validation_response.decoded_token.first
           Rails.logger.info "Token validated successfully. Decoded token: #{decoded_token.inspect}"
+      
           email = decoded_token['email']
           if email.blank?
             Rails.logger.error "Decoded token is missing email."
             render fail_response(message: "Invalid token: email is missing", status: 401)
             return
           end
-        Rails.logger.info "Email extracted from token: #{email}"
-        Rails.logger.info "Email extracted from token: #{email}"
       
-        # find the user by email or create them if they don't exist
           Rails.logger.info "Email extracted from token: #{email}"
       
-        # find the user by email or create them if they don't exist
           @user = User.find_or_create_by(email: email) do |user|
             user.password = SecureRandom.hex(10)
             user.password_confirmation = user.password
+            user.user_type = 'auth0'
             Rails.logger.info "Creating a new user with email: #{email}"
           end
+      
+          if @user.persisted? && @user.user_type.blank?
+            @user.update_column(:user_type, 'retro_fitted')
+            Rails.logger.info "Set user_type to 'retro_fitted' for existing user: #{email}"
+          end
+      
           if @user.persisted?
             Rails.logger.info "User found or created successfully. Signing in user..."
             sign_in(:user, @user)
