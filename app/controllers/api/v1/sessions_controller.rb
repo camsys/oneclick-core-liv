@@ -60,7 +60,7 @@ module Api
 
             if @user.present?
               if @user.user_type.blank?
-                @user.update(user_type: 'retro_fitted')
+                @user.update_column(:user_type, 'retro_fitted')
                 Rails.logger.info "Existing user detected, user_type set to retro_fitted"
               else
                 Rails.logger.info "Existing user with user_type: #{@user.user_type}, no update needed"
