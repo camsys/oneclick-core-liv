@@ -140,6 +140,11 @@ module Api
             @user.ensure_authentication_token
             justride_response = JustrideClient.create_external_account(id_token)
             Rails.logger.info "Justride account creation status: #{justride_response}"
+            if justride_response && @user.age.to_i >= 65
+              Rails.logger.info "User >=65 — adding Senior entitlement"
+              ent_response = JustrideClient.add_senior_entitlement(account_id)
+              Rails.logger.info "Entitlement response: #{ent_response.inspect}"
+            end
             render success_response(
               message: "User signed in successfully",
               session: {
