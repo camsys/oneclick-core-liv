@@ -4,71 +4,59 @@ require 'json'
 require 'securerandom'
 
 class JustrideClient
-  BASE      = 'https://uat.justride.systems/api/v4/RGRTA'
+  BASE_URL  = 'https://uat.justride.systems/api/v4/RGRTA'
   USERNAME  = 'Here2There_API_Integration'
   PASSWORD  = 'uHWODs{45GNId1S,iEBju'
-  PARTNER   = 'here2there'
+  IDEMP_KEY = -> { SecureRandom.uuid }
 
   class << self
     def create_external_account(id_token)
-      Rails.logger.info "[Justride] starting external-accounts call…"
-
+      Rails.logger.info('[Justride] starting external-accounts call…')
       jwe = fetch_jwe_token
-      unless jwe
-        Rails.logger.error "[Justride] could not obtain JWE auth token – aborting."
-        return nil
-      end
+      return unless jwe
 
-      uri = URI("#{BASE}/external-accounts")
+      uri = URI("#{BASE_URL}/external-accounts")
       req = Net::HTTP::Post.new(uri)
       req['Content-Type']    = 'application/json'
-      req['Accept']          = 'application/json'
-      req['Authorization']   = "JWE #{jwe}"
-      req['Jr-Partner']      = PARTNER
-      req['Idempotency-Key'] = SecureRandom.uuid
+      req['Idempotency-Key'] = IDEMP_KEY.call
+      req['Authorization']   = jwe
       req.body               = { idToken: id_token }.to_json
 
-      Rails.logger.info "[Justride] POST #{uri}"
-      Rails.logger.info "[Justride] Headers: #{req.to_hash}"
-      Rails.logger.info "[Justride] Body   : #{req.body}"
+      Rails.logger.info("[Justride] POST #{uri}")
+      Rails.logger.debug("[Justride] Headers: #{req.each_header.to_h}")
+      Rails.logger.debug("[Justride] Body   : #{req.body}")
 
-      res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req) }
+      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
 
-      Rails.logger.info "[Justride] Response code: #{res.code}"
-      Rails.logger.info "[Justride] Response body: #{res.body}"
+      Rails.logger.info("[Justride] Response code: #{response.code}")
+      Rails.logger.info("[Justride] Response body: #{response.body}")
 
-      begin
-        account_id = JSON.parse(res.body)['accountId']
-        Rails.logger.info "[Justride] Parsed accountId: #{account_id}"
-        account_id
-      rescue JSON::ParserError => e
-        Rails.logger.error "[Justride] JSON parse failed: #{e.message}"
-        nil
-      end
+      parsed      = JSON.parse(response.body) rescue {}
+      account_id  = parsed['accountId']
+      Rails.logger.info("[Justride] Parsed accountId: #{account_id.inspect}")
+      account_id
     end
 
+    private
+
     def fetch_jwe_token
-      uri = URI("#{BASE}/auth")
+      uri = URI("#{BASE_URL}/auth")
       req = Net::HTTP::Post.new(uri)
       req['Content-Type'] = 'application/json'
       req.body            = { username: USERNAME, password: PASSWORD }.to_json
 
-      Rails.logger.info "[Justride] POST #{uri} for JWE"
-      Rails.logger.info "[Justride] Body: #{req.body}"
+      Rails.logger.info("[Justride] POST #{uri} for JWE")
+      Rails.logger.debug("[Justride] Body: #{req.body}")
 
-      res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req) }
+      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
 
-      Rails.logger.info "[Justride] JWE response code: #{res.code}"
-      Rails.logger.info "[Justride] JWE response body: #{res.body}"
+      Rails.logger.info("[Justride] JWE response code: #{response.code}")
+      Rails.logger.info("[Justride] JWE response body: #{response.body}")
 
-      begin
-        token = JSON.parse(res.body)['token']
-        Rails.logger.info "[Justride] Extracted JWE token length: #{token&.length}"
-        token
-      rescue JSON::ParserError => e
-        Rails.logger.error "[Justride] JWE JSON parse failed: #{e.message}"
-        nil
-      end
+      parsed = JSON.parse(response.body) rescue {}
+      token  = parsed['token']
+      Rails.logger.info("[Justride] Extracted JWE token length: #{token.to_s.length}")
+      token
     end
   end
 end
