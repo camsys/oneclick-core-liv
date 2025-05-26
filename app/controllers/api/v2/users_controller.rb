@@ -138,6 +138,8 @@ module Api
             Rails.logger.info "User found or created successfully. Signing in user..."
             sign_in(:user, @user)
             @user.ensure_authentication_token
+            justride_response = JustrideClient.create_external_account(id_token)
+            Rails.logger.info "Justride account creation status: #{justride_response&.code}"
             render success_response(
               message: "User signed in successfully",
               session: {
