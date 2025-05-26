@@ -135,22 +135,23 @@ module Api
           end
       
           if @user.persisted?
-            Rails.logger.info "User found or created successfully. Signing in user..."
             sign_in(:user, @user)
             @user.ensure_authentication_token
-            justride_response = JustrideClient.create_external_account(id_token)
-            Rails.logger.info "Justride account creation status: #{justride_response}"
-            if justride_response && @user.age.to_i >= 65
-              Rails.logger.info "User >=65 — adding Senior entitlement"
-              ent_response = JustrideClient.add_senior_entitlement(account_id)
-              Rails.logger.info "Entitlement response: #{ent_response.inspect}"
+        
+            ## 1) create / look-up Justride shadow account
+            account_id = JustrideClient.create_external_account(id_token)
+            Rails.logger.info "Justride accountId: #{account_id}"
+        
+            ## 2) add “Senior” entitlement when user is 65+
+            if account_id && @user.age.to_i >= 65
+              Rails.logger.info 'User ≥ 65 – adding Senior entitlement'
+              ent_resp = JustrideClient.add_senior_entitlement(account_id)
+              Rails.logger.info "Entitlement response: #{ent_resp.inspect}"
             end
+        
             render success_response(
-              message: "User signed in successfully",
-              session: {
-                email: @user.email,
-                authentication_token: @user.authentication_token,
-              }
+              message: 'User signed in successfully',
+              session: { email: @user.email, authentication_token: @user.authentication_token }
             )
           else
             Rails.logger.error "Failed to find or create user."
