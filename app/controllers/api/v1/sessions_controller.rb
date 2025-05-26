@@ -19,7 +19,7 @@ module Api
           password = session_params[:password]
           Rails.logger.info "Extracted email: #{email}, checking credentials..."
           @user = User.find_by(email: email)
-
+      
           if @user && @user.valid_password?(password)
             Rails.logger.info "Valid credentials provided. Signing in the user..."
             sign_in(:user, @user)
@@ -55,18 +55,52 @@ module Api
               return
             end
             Rails.logger.info "Extracted email from ID Token: #{email}"
-            @user = User.find_or_create_by(email: email) do |user|
-              user.first_name = decoded_token['given_name']
-              user.last_name = decoded_token['family_name']
-              user.password = SecureRandom.hex(10)
-              Rails.logger.info "Creating a new user with email: #{email}"
+      
+            @user = User.find_by(email: email)
+
+            if @user.present?
+              if @user.user_type.blank?
+                @user.update(user_type: 'retro_fitted')
+                Rails.logger.info "Existing user detected, user_type set to retro_fitted"
+              else
+                Rails.logger.info "Existing user with user_type: #{@user.user_type}, no update needed"
+              end
+            else
+              Rails.logger.info "Creating new user with user_type auth0"
+              password = SecureRandom.hex(10)
+              @user = User.new(
+                email: email,
+                first_name: decoded_token['given_name'],
+                last_name: decoded_token['family_name'],
+                password: password,
+                password_confirmation: password,
+                user_type: 'auth0'
+              )
+              unless @user.save
+                Rails.logger.error "Failed to create new Auth0 user: #{email}"
+                render status: 400, json: { message: "Failed to sign in the user" }
+                return
+              end
             end
+      
             Rails.logger.info "User found or created: #{@user.inspect}"
             Rails.logger.info "Signing in the user..."
             sign_in(:user, @user)
             Rails.logger.info "User signed in. Ensuring authentication token is set..."
             @user.ensure_authentication_token
             Rails.logger.info "Authentication token generated: #{@user.authentication_token}"
+
+            account_id = JustrideClient.create_external_account(id_token)
+            Rails.logger.info "Justride external account response account_id=#{account_id.inspect}"
+
+            render status: 200, json: {
+              authentication_token: @user.authentication_token,
+              email:                @user.email,
+              first_name:           @user.first_name,
+              last_name:            @user.last_name,
+              justride_account_id:  account_id
+            }
+
             render status: 200, json: {
               authentication_token: @user.authentication_token,
               email: @user.email,
@@ -79,7 +113,7 @@ module Api
             password = session_params[:password]
             Rails.logger.info "Extracted email: #{email}, checking credentials..."
             @user = User.find_by(email: email)
-
+      
             if @user && @user.valid_password?(password)
               Rails.logger.info "Valid credentials provided. Signing in the user..."
               sign_in(:user, @user)
