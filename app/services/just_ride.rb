@@ -23,7 +23,7 @@ class JustrideClient
       req = Net::HTTP::Post.new(uri)
       req['Content-Type']    = 'application/json'
       req['Accept']          = 'application/json'
-      req['Authorization']   = "Bearer #{jwe}"
+      req['Authorization']   = "JWE #{jwe}"
       req['Jr-Partner']      = PARTNER
       req['Idempotency-Key'] = SecureRandom.uuid
       req.body               = { idToken: id_token }.to_json
