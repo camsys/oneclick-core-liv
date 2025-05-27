@@ -23,16 +23,29 @@ class JustrideClient
       post("#{BASE_URL}/accounts/#{account_id}/entitlements", jwe, senior_body)
     end
 
-    ## generic POST helper
-    def post(url, auth, body)
+    def post(url, auth_header, body_hash)
       uri = URI(url)
       req = Net::HTTP::Post.new(uri)
       req['Content-Type']    = 'application/json'
-      req['Authorization']   = auth
+      req['Authorization']   = auth_header
       req['Jr-Partner']      = PARTNER
       req['Idempotency-Key'] = IDEMP_KEY.call
-      req.body               = body.to_json
-      res  = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req) }
+      req.body               = body_hash.to_json
+
+      Rails.logger.debug "[Justride DEBUG] URL:     #{uri}"
+      Rails.logger.debug "[Justride DEBUG] Method:  #{req.method}"
+      Rails.logger.debug "[Justride DEBUG] Headers: #{req.to_hash.inspect}"
+      Rails.logger.debug "[Justride DEBUG] Body:    #{req.body}"
+
+      http = Net::HTTP.new(uri.hostname, uri.port)
+      http.use_ssl = (uri.scheme == 'https')
+      http.set_debug_output(Rails.logger)  
+
+      res = http.start { |h| h.request(req) }
+
+      Rails.logger.debug "[Justride DEBUG] Response code: #{res.code}"
+      Rails.logger.debug "[Justride DEBUG] Response body: #{res.body}"
+
       JSON.parse(res.body) rescue {}
     end
 
