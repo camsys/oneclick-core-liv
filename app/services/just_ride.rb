@@ -9,7 +9,7 @@ class JustrideClient
   PASSWORD   = ENV.fetch('JUSTRIDE_PASSWORD')
   PARTNER    = ENV.fetch('JUSTRIDE_PARTNER')
   IDEMP_KEY  = -> { SecureRandom.uuid }
-  SENIOR_BODY = { riderTypeRestrictionName: 'Senior', enabled: true }.freeze
+  SENIOR_BODY = { riderTypeRestrictionName: 'Senior', enabled: true }
 
   class << self
     # Creates a shadow Justride account and returns the accountId
