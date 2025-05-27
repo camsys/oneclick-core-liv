@@ -4,12 +4,11 @@ require 'json'
 require 'securerandom'
 
 class JustrideClient
-  BASE_URL   = ENV['JUSTRIDE_BASE_URL']
-  USERNAME   = ENV['JUSTRIDE_USERNAME']
-  PASSWORD   = ENV['JUSTRIDE_PASSWORD']
-  PARTNER    = ENV['JUSTRIDE_PARTNER']
-  IDEMP_KEY  = -> { SecureRandom.uuid }
-  SENIOR_BODY = { riderTypeRestrictionName: 'Senior', enabled: true }
+  BASE_URL  = ENV['JUSTRIDE_BASE_URL']
+  USERNAME  = ENV['JUSTRIDE_USERNAME']
+  PASSWORD  = ENV['JUSTRIDE_PASSWORD']
+  PARTNER   = ENV['JUSTRIDE_PARTNER']
+  IDEMP_KEY = -> { SecureRandom.uuid }
 
   class << self
     ## create shadow account – returns accountId
@@ -21,7 +20,7 @@ class JustrideClient
     ## add Senior entitlement – returns API json
     def add_senior_entitlement(account_id)
       jwe = fetch_jwe_token or return
-      post("#{BASE_URL}/accounts/#{account_id}/entitlements", jwe, SENIOR_BODY)
+      post("#{BASE_URL}/accounts/#{account_id}/entitlements", jwe, senior_body)
     end
 
     ## generic POST helper
@@ -33,8 +32,18 @@ class JustrideClient
       req['Jr-Partner']      = PARTNER
       req['Idempotency-Key'] = IDEMP_KEY.call
       req.body               = body.to_json
-      res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req) }
+      res  = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req) }
       JSON.parse(res.body) rescue {}
+    end
+
+    ## build Senior entitlement payload (expires 30 years from now)
+    def senior_body
+      {
+        riderTypeRestrictionName: 'Senior',
+        proofId:                  'DOB>=65',
+        expiresAt:                30.years.from_now.utc.iso8601,
+        enabled:                  true
+      }
     end
 
     ## get fresh JWE token
@@ -43,7 +52,7 @@ class JustrideClient
       req = Net::HTTP::Post.new(uri)
       req['Content-Type'] = 'application/json'
       req.body            = { username: USERNAME, password: PASSWORD }.to_json
-      res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req) }
+      res  = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req) }
       JSON.parse(res.body)['token'] rescue nil
     end
   end
