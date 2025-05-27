@@ -4,10 +4,10 @@ require 'json'
 require 'securerandom'
 
 class JustrideClient
-  BASE_URL   = ENV.fetch('JUSTRIDE_BASE_URL')
-  USERNAME   = ENV.fetch('JUSTRIDE_USERNAME')
-  PASSWORD   = ENV.fetch('JUSTRIDE_PASSWORD')
-  PARTNER    = ENV.fetch('JUSTRIDE_PARTNER')
+  BASE_URL   = ENV['JUSTRIDE_BASE_URL']
+  USERNAME   = ENV['JUSTRIDE_USERNAME']
+  PASSWORD   = ENV['JUSTRIDE_PASSWORD']
+  PARTNER    = ENV['JUSTRIDE_PARTNER']
   IDEMP_KEY  = -> { SecureRandom.uuid }
   SENIOR_BODY = { riderTypeRestrictionName: 'Senior', enabled: true }
 
