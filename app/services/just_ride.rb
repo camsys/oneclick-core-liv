@@ -12,43 +12,37 @@ class JustrideClient
   SENIOR_BODY = { riderTypeRestrictionName: 'Senior', enabled: true }
 
   class << self
-    # Creates a shadow Justride account and returns the accountId
+    ## create shadow account – returns accountId
     def create_external_account(id_token)
-      jwe = fetch_jwe_token
-      return unless jwe
-      res = post("#{BASE_URL}/external-accounts", jwe, idToken: id_token)
-      res['accountId']
+      jwe = fetch_jwe_token or return
+      post("#{BASE_URL}/external-accounts", jwe, idToken: id_token)['accountId']
     end
 
-    # Adds a senior entitlement to an existing Justride account
+    ## add Senior entitlement – returns API json
     def add_senior_entitlement(account_id)
-      jwe = fetch_jwe_token
-      return unless jwe
+      jwe = fetch_jwe_token or return
       post("#{BASE_URL}/accounts/#{account_id}/entitlements", jwe, SENIOR_BODY)
     end
 
-    # Sends a POST request with authorization and idempotency headers
-    def post(url, auth_header, body_hash)
+    ## generic POST helper
+    def post(url, auth, body)
       uri = URI(url)
       req = Net::HTTP::Post.new(uri)
       req['Content-Type']    = 'application/json'
-      req['Authorization']   = auth_header
+      req['Authorization']   = auth
       req['Jr-Partner']      = PARTNER
       req['Idempotency-Key'] = IDEMP_KEY.call
-      req.body               = body_hash.to_json
-
-      Rails.logger.info("[Justride] POST #{uri.path} #{body_hash}")
+      req.body               = body.to_json
       res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req) }
       JSON.parse(res.body) rescue {}
     end
 
-    # Fetches a fresh JWE token for Justride API requests
+    ## get fresh JWE token
     def fetch_jwe_token
       uri = URI("#{BASE_URL}/auth")
       req = Net::HTTP::Post.new(uri)
       req['Content-Type'] = 'application/json'
-      req.body = { username: USERNAME, password: PASSWORD }.to_json
-
+      req.body            = { username: USERNAME, password: PASSWORD }.to_json
       res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |h| h.request(req) }
       JSON.parse(res.body)['token'] rescue nil
     end
