@@ -1,8 +1,4 @@
-require 'net/http'
-require 'uri'
-require 'json'
-require 'securerandom'
-
+# app/lib/justride_client.rb
 class JustrideClient
   BASE_URL   = ENV.fetch('JUSTRIDE_BASE_URL')
   USERNAME   = ENV.fetch('JUSTRIDE_USERNAME')
@@ -18,10 +14,11 @@ class JustrideClient
   }
 
   class << self
-    ## create shadow account – returns accountId
+    ## create shadow account – returns accountId (or nil)
     def create_external_account(id_token)
       jwe = fetch_jwe_token or return
-      post("#{BASE_URL}/external-accounts", jwe, idToken: id_token)['accountId']
+      resp = post("#{BASE_URL}/external-accounts", jwe, { idToken: id_token })
+      resp['accountId']
     end
 
     ## add Senior entitlement
@@ -30,7 +27,7 @@ class JustrideClient
       post("#{BASE_URL}/accounts/#{account_id}/entitlements", jwe, SENIOR_BODY)
     end
 
-    ## ---------- helpers ----------
+    private
 
     def post(url, auth, body)
       uri = URI(url)
@@ -42,12 +39,10 @@ class JustrideClient
       req.body               = body.to_json
 
       dump('URL',     uri.to_s)
-      dump('Method',  'POST')
       dump('Headers', req.to_hash)
       dump('Body',    body)
 
       res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |h| h.request(req) }
-
       dump('Response', "#{res.code} #{res.message}")
       dump('Resp-body', res.body)
 
@@ -62,9 +57,8 @@ class JustrideClient
       JSON.parse(res.body)['token'] rescue nil
     end
 
-    ## tiny logger
     def dump(label, value)
-      Rails.logger.debug("[Justride DEBUG] #{label}: #{value}")
+      Rails.logger.debug("[Justride DEBUG] #{label}: #{value.inspect}")
     end
   end
 end
