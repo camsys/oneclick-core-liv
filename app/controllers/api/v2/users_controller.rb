@@ -16,45 +16,43 @@ module Api
       end
 
       # Update's the user's profile
-      # Update's the user's profile
       def update
-        unless @traveler.present?
-          Rails.logger.warn "[UsersController#update] No traveler found for ID=#{params[:id]}"
-          render(fail_response(status: 404, message: "Not found")) and return
-        end
-
+        skip_forgery_protection if respond_to?(:skip_forgery_protection)
+      
+        return render(fail_response(status: 404, message: "Not found")) unless @traveler
+      
         old_age = @traveler.age.to_i
         Rails.logger.debug "[UsersController#update] Current age for #{@traveler.email}: #{old_age}"
-
-        begin
-          if @traveler.update_profile(params)
-            new_age = @traveler.age.to_i
-            Rails.logger.debug "[UsersController#update] Updated age for #{@traveler.email}: #{new_age}"
-
-            if old_age < 65 && new_age >= 65
-              account_id = @traveler.justride_account_id
-              Rails.logger.info  "[UsersController#update] Age crossed 65 for #{@traveler.email}, adding Senior entitlement to Justride account #{account_id}"
-              begin
-                resp = JustrideClient.add_senior_entitlement(account_id)
-                Rails.logger.info "[UsersController#update] Justride add_senior_entitlement response: #{resp.inspect}"
-              rescue => e
-                Rails.logger.error "[UsersController#update] Failed to add Senior entitlement for account #{account_id}: #{e.class} #{e.message}"
-              end
+      
+        if @traveler.update_profile(params)
+          new_age = @traveler.age.to_i
+          Rails.logger.debug "[UsersController#update] Updated age for #{@traveler.email}: #{new_age}"
+      
+          if old_age < 65 && new_age >= 65
+            acct = @traveler.justride_account_id
+            if acct.blank?
+              Rails.logger.error "[UsersController#update] No justride_account_id on #{@traveler.email}! Cannot add entitlement."
             else
-              Rails.logger.debug "[UsersController#update] No entitlement action needed (old_age=#{old_age}, new_age=#{new_age})"
+              Rails.logger.info  "[UsersController#update] Age crossed 65 for #{@traveler.email}, calling JustrideClient.add_senior_entitlement(#{acct})"
+              resp = JustrideClient.add_senior_entitlement(acct)
+              Rails.logger.info "[UsersController#update] Justride add_senior_entitlement response: #{resp.inspect}"
             end
-
-            set_locale  # based on traveler's new preferred locale
-            render(success_response(@traveler))
           else
-            Rails.logger.warn "[UsersController#update] update_profile failed for #{@traveler.email}: #{ @traveler.errors.full_messages.join(', ') }"
-            render(fail_response(status: 400, message: "Unable to update."))
+            Rails.logger.debug "[UsersController#update] No entitlement action needed (old_age=#{old_age}, new_age=#{new_age})"
           end
-        rescue => exception
-          Rails.logger.error "[UsersController#update] Exception during update for #{@traveler.email}: #{exception.class} #{exception.message}\n#{exception.backtrace.first(5).join("\n")}"
+      
+          set_locale
+          render(success_response(@traveler))
+        else
+          Rails.logger.warn "[UsersController#update] update_profile failed: #{@traveler.errors.full_messages.join(', ')}"
           render(fail_response(status: 400, message: "Unable to update."))
         end
+      
+      rescue => e
+        Rails.logger.error "[UsersController#update] Exception: #{e.class} #{e.message}\n#{e.backtrace.first(5).join("\n")}"
+        render(fail_response(status: 400, message: "Unable to update."))
       end
+      
 
 
       # Sign up a new user
