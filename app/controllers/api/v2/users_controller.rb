@@ -32,16 +32,26 @@ module Api
           Rails.logger.debug "[UsersController#update] Updated age for #{@traveler.email}: #{new_age}"
 
           if old_age < 65 && new_age >= 65
+            # make sure we have a shadow account
             acct = @traveler.justride_account_id
             if acct.blank?
-              Rails.logger.error "[UsersController#update] No justride_account_id on #{@traveler.email}! Cannot add entitlement."
-            else
-              Rails.logger.info "[UsersController#update] Age crossed 65 for #{@traveler.email}, calling JustrideClient.add_senior_entitlement(#{acct})"
+              Rails.logger.info  "[UsersController#update] No Justride account for #{@traveler.email}, creating one now"
+              acct = JustrideClient.create_external_account(@traveler.id_token_from_auth0)
+              if acct.present?
+                @traveler.update_column(:justride_account_id, acct)
+                Rails.logger.info "[UsersController#update] Persisted justride_account_id=#{acct}"
+              else
+                Rails.logger.error "[UsersController#update] Failed to create Justride account for #{@traveler.email}"
+              end
+            end
+
+            if acct.present?
+              Rails.logger.info "[UsersController#update] Age crossed 65 for #{@traveler.email}, adding Senior entitlement to account #{acct}"
               begin
                 resp = JustrideClient.add_senior_entitlement(acct)
                 Rails.logger.info "[UsersController#update] Justride add_senior_entitlement response: #{resp.inspect}"
               rescue => e
-                Rails.logger.error "[UsersController#update] Failed to add Senior entitlement for account #{acct}: #{e.class} #{e.message}"
+                Rails.logger.error "[UsersController#update] Error adding entitlement for #{acct}: #{e.class} #{e.message}"
               end
             end
           else
@@ -51,7 +61,7 @@ module Api
           set_locale
           render(success_response(@traveler))
         else
-          Rails.logger.warn "[UsersController#update] update_profile failed for #{@traveler.email}: #{@traveler.errors.full_messages.join(', ')}"
+          Rails.logger.warn "[UsersController#update] update_profile failed for #{@traveler.email}: #{ @traveler.errors.full_messages.join(', ') }"
           render(fail_response(status: 400, message: "Unable to update."))
         end
 
@@ -59,6 +69,7 @@ module Api
         Rails.logger.error "[UsersController#update] Exception: #{e.class} #{e.message}\n#{e.backtrace.first(5).join("\n")}"
         render(fail_response(status: 400, message: "Unable to update."))
       end
+
       
 
 
