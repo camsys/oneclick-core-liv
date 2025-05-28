@@ -18,13 +18,21 @@ module Api
       # Update's the user's profile
       def update
         unless @traveler.present?
-          render(fail_response(status: 404, message: "Not found"))
+          render(fail_response(status: 404, message: "Not found")) and return
         end
-        
-        # user.update_profile call filters out any unsafe params
+
+        old_age = @traveler.age.to_i
+
         begin
           if @traveler.update_profile(params)
-            set_locale # based on traveler's new preferred locale
+            new_age = @traveler.age.to_i
+
+            # if they just turned 65+, add the Senior entitlement
+            if old_age < 65 && new_age >= 65
+              JustrideClient.add_senior_entitlement(@traveler.justride_account_id)
+            end
+
+            set_locale  # based on traveler's new preferred locale
             render(success_response(@traveler))
           else
             render(fail_response(status: 400, message: "Unable to update."))
@@ -33,6 +41,7 @@ module Api
           render(fail_response(status: 400, message: "Unable to update."))
         end
       end
+
 
       # Sign up a new user
       # POST /sign_up
