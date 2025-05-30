@@ -220,7 +220,7 @@ class Admin::ServicesController < Admin::AdminController
     [
       :name, :type, :logo,
       :url, :email, :phone,
-      :agency_id, :published, :updated_at
+      :agency_id, :published, :updated_at, :rts_purchase_url
     ] + description_params
   end
 

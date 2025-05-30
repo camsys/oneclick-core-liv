@@ -3,7 +3,7 @@ module Api
     class ServiceSerializer < ApiSerializer
 
       attributes :id, :name, :type, :logo, :full_logo, :url, :email, :phone, :formatted_phone,
-                 :description, :rating, :ratings_count
+                 :description, :rating, :ratings_count, :rts_purchase_url
                  
       has_many :schedules
       has_many :accommodations
