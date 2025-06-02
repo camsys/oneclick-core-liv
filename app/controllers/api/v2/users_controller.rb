@@ -29,7 +29,10 @@ module Api
           Rails.logger.debug "[UsersController#update] age_after=#{new_age} email=#{@traveler.email}"
       
           begin
-            if params.dig(:user, :create_rts_account).to_s == 'true'
+            if ActiveModel::Type::Boolean.new.cast(
+              params.dig(:attributes, :create_rts_account) ||
+              params.dig(:user,       :create_rts_account)
+            )         
               id_token = params[:id_token] || session[:id_token]
       
               if @traveler.justride_account_id.blank?
