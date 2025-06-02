@@ -17,6 +17,7 @@ module Api
 
       # Update's the user's profile
       def update
+        Rails.logger.debug "[UsersController#update] raw_params=#{params[:user].inspect}"
         skip_forgery_protection if respond_to?(:skip_forgery_protection)
         return render(fail_response(status: 404, message: 'Not found')) unless @traveler
       
