@@ -5,11 +5,12 @@ class JustrideClient
   PASSWORD   = ENV.fetch('JUSTRIDE_PASSWORD')
   PARTNER    = ENV.fetch('JUSTRIDE_PARTNER')
   IDEMP_KEY  = -> { SecureRandom.uuid }
+  ENTITLEMENT_EXPIRY = '2125-12-31T23:59:59Z'
 
   SENIOR_BODY = {
     riderTypeRestrictionName: 'Senior',
-    proofId:   'DOB>=65',
-    expiresAt: '2030-12-31T23:59:59Z',
+    proofId:   'DOB>=60',
+    expiresAt: ENTITLEMENT_EXPIRY,
     enabled:   true
   }
 
